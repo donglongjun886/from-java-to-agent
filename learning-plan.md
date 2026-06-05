@@ -40,6 +40,7 @@
 - [ ] `notes/python-for-java-devs.md` — Java vs Python 对比笔记
 - [ ] `notes/llm-fundamentals.md` — LLM 基础概念笔记
 - [ ] `journal/week-01/retrospective.md` — 第一周复盘
+- [ ] 🌙 `projects/01-hello-agent-java/` — Spring AI Alibaba 版 Hello Agent（Java 技术栈对照实现）
 
 ### 关键资源
 - [DeepSeek API 文档](https://platform.deepseek.com/api-docs/)
@@ -72,6 +73,8 @@
 - [ ] `notes/prompt-engineering.md` — Prompt 工程笔记
 - [ ] `notes/tool-calling-and-mcp.md` — Tool Calling 与 MCP 协议笔记
 - [ ] `journal/week-02/retrospective.md` — 第二周复盘
+- [ ] 🌙 `projects/02-tool-calling-java/` — LangChain4j 版多工具 Agent（Tool 注册 + MCP Client）
+- [ ] 🌙 `notes/面试题-Agent基础.md` — Agent 基础类面经题整理（10 道）
 
 ### 关键资源
 - [Anthropic Tool Use 文档](https://docs.anthropic.com/en/docs/build-with-claude/tool-use)
@@ -104,6 +107,8 @@
 - [ ] `notes/rag-architecture.md` — RAG 架构笔记
 - [ ] `notes/agent-frameworks.md` — LangChain/LangGraph/CrewAI 框架对比笔记
 - [ ] `journal/week-03/retrospective.md` — 第三周复盘
+- [ ] 🌙 `projects/03-rag-system-java/` — LangChain4j + PGVector 版 RAG 系统
+- [ ] 🌙 `notes/面试题-RAG+MCP.md` — RAG + MCP 类面经题整理（15 道）
 
 ### 关键资源
 - [LangGraph 官方文档](https://langchain-ai.github.io/langgraph/)
@@ -136,6 +141,9 @@
 - [ ] `notes/production-agent.md` — Agent 生产化要点
 - [ ] `journal/week-04/retrospective.md` — 第四周复盘
 - [ ] `journal/final-summary.md` — 月度总结 + 技能矩阵 + 后续计划
+- [ ] 🌙 `notes/面试题-系统设计.md` — 系统设计类面经题整理（15 道）
+- [ ] 🌙 4 个项目技术复盘文档（架构图 + 设计决策 + 踩坑）
+- [ ] 🌙 完整模拟面试 4 轮（自评 + 改进记录）
 
 ### 关键资源
 - [LangGraph Multi-Agent 教程](https://langchain-ai.github.io/langgraph/tutorials/multi_agent/multi-agent-collaboration/)
@@ -147,9 +155,27 @@
 ## 学习方法论
 
 ### 每日节奏
+
+**白天段（4-5h）**：
 1. **输入（1-2h）**：阅读文档/看课程/读代码
 2. **编码（2-3h）**：动手写代码，小步快跑
 3. **输出（30min）**：写笔记，记录今日收获与问题
+
+**晚段（1-1.5h）**：Java 栈 AI 能力补齐 + 面试准备
+1. Spring AI Alibaba / LangChain4j 实战（与 Python 项目并行推进）
+2. 面经题刷题（从第2周开始，逐步增量）
+3. 项目技术复盘（架构图 + 设计决策 + 踩坑记录）
+
+---
+
+### 晚段专项计划
+
+| 周次 | 晚段重点 | 具体内容 | 每日耗时 |
+|------|---------|---------|---------|
+| **第1周** | Spring AI Alibaba 入门 | 跑通 Spring Boot + 通义千问 API 调用、理解 Spring AI 的 Function Calling 封装 | 1h |
+| **第2周** | LangChain4j 入门 + 面经起步 | LangChain4j 的 Tool 定义/Agent 编排、补面经题 2 道/天（Agent 基础类） | 1h |
+| **第3周** | Java 版 RAG 实战 + 面经增量 | 用 LangChain4j + PGVector 做一个 Java 版 RAG 问答、补面经题 3 道/天（RAG + MCP 类） | 1.5h |
+| **第4周** | 综合模拟面试 + 项目复盘 | 每天 1 轮完整模拟面试（30min 问答 + 自评）、整理 4 个项目复盘文档、系统设计题专项 | 1.5h |
 
 ### Java → Python 速通策略
 - 不要在 Python 语法上花太多时间——前 3 天足够覆盖 80% 的使用场景
