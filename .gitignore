@@ -1,0 +1,34 @@
+# Python Virtual Environment
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/shelf/
+*.iml
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Project specific
+*.db
+*.sqlite3
+chroma_db/
