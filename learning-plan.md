@@ -36,10 +36,10 @@
 | **Day5 (06/11 四)** | 周复盘 | 整理笔记、写复盘日志、输出项目 README | — |
 
 ### 本周产出
-- ✅ `projects/01-hello-agent/` — 可多轮对话的命令行 Agent，支持流式输出、错误重试、成本统计
-- ✅ `notes/python-for-java-devs.md` — Java vs Python 对比笔记
-- ✅ `notes/llm-fundamentals.md` — LLM 基础概念笔记
-- ✅ `journal/week-01/retrospective.md` — 第一周复盘
+- [ ] `projects/01-hello-agent/` — 可多轮对话的命令行 Agent，支持流式输出、错误重试、成本统计
+- [ ] `notes/python-for-java-devs.md` — Java vs Python 对比笔记
+- [ ] `notes/llm-fundamentals.md` — LLM 基础概念笔记
+- [ ] `journal/week-01/retrospective.md` — 第一周复盘
 
 ### 关键资源
 - [DeepSeek API 文档](https://platform.deepseek.com/api-docs/)
@@ -67,11 +67,11 @@
 | **Day10 (06/18 四)** | 项目实战2（下）+ 周复盘 | 项目完善、对比 Tool Use 原生 vs MCP 方案、整理笔记、写复盘日志 | — |
 
 ### 本周产出
-- ✅ `projects/02-tool-calling/` — 多工具聚合 Agent（天气 + 数据查询 + 文件操作）
-- ✅ `projects/02-tool-calling/mcp-server/` — 自定义 MCP Server
-- ✅ `notes/prompt-engineering.md` — Prompt 工程笔记
-- ✅ `notes/tool-calling-and-mcp.md` — Tool Calling 与 MCP 协议笔记
-- ✅ `journal/week-02/retrospective.md` — 第二周复盘
+- [ ] `projects/02-tool-calling/` — 多工具聚合 Agent（天气 + 数据查询 + 文件操作）
+- [ ] `projects/02-tool-calling/mcp-server/` — 自定义 MCP Server
+- [ ] `notes/prompt-engineering.md` — Prompt 工程笔记
+- [ ] `notes/tool-calling-and-mcp.md` — Tool Calling 与 MCP 协议笔记
+- [ ] `journal/week-02/retrospective.md` — 第二周复盘
 
 ### 关键资源
 - [Anthropic Tool Use 文档](https://docs.anthropic.com/en/docs/build-with-claude/tool-use)
@@ -99,11 +99,11 @@
 | **Day15 (06/25 四)** | 项目实战3（下）+ 周复盘 | 引用溯源、RAG 效果评估、框架选型思考、整理笔记 | — |
 
 ### 本周产出
-- ✅ `projects/03-rag-system/` — RAG 知识库问答系统（支持 PDF/TXT 文档上传、引用溯源）
-- ✅ `notes/embeddings-and-vector-db.md` — Embedding 与向量数据库笔记
-- ✅ `notes/rag-architecture.md` — RAG 架构笔记
-- ✅ `notes/agent-frameworks.md` — LangChain/LangGraph/CrewAI 框架对比笔记
-- ✅ `journal/week-03/retrospective.md` — 第三周复盘
+- [ ] `projects/03-rag-system/` — RAG 知识库问答系统（支持 PDF/TXT 文档上传、引用溯源）
+- [ ] `notes/embeddings-and-vector-db.md` — Embedding 与向量数据库笔记
+- [ ] `notes/rag-architecture.md` — RAG 架构笔记
+- [ ] `notes/agent-frameworks.md` — LangChain/LangGraph/CrewAI 框架对比笔记
+- [ ] `journal/week-03/retrospective.md` — 第三周复盘
 
 ### 关键资源
 - [LangGraph 官方文档](https://langchain-ai.github.io/langgraph/)
@@ -131,11 +131,11 @@
 | **Day20 (07/02 四)** | 全面复盘 | 四周学习总结、技能矩阵评估、求职方向建议、后续学习路线 | — |
 
 ### 本周产出
-- ✅ `projects/04-multi-agent/` — 多 Agent 协同系统（如：研究员→分析师→写手→审核员流水线）
-- ✅ `notes/multi-agent-patterns.md` — 多 Agent 模式笔记
-- ✅ `notes/production-agent.md` — Agent 生产化要点
-- ✅ `journal/week-04/retrospective.md` — 第四周复盘
-- ✅ `journal/final-summary.md` — 月度总结 + 技能矩阵 + 后续计划
+- [ ] `projects/04-multi-agent/` — 多 Agent 协同系统（如：研究员→分析师→写手→审核员流水线）
+- [ ] `notes/multi-agent-patterns.md` — 多 Agent 模式笔记
+- [ ] `notes/production-agent.md` — Agent 生产化要点
+- [ ] `journal/week-04/retrospective.md` — 第四周复盘
+- [ ] `journal/final-summary.md` — 月度总结 + 技能矩阵 + 后续计划
 
 ### 关键资源
 - [LangGraph Multi-Agent 教程](https://langchain-ai.github.io/langgraph/tutorials/multi_agent/multi-agent-collaboration/)
