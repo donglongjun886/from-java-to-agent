@@ -17,7 +17,7 @@
 ## 当前进度
 
 - ✅ **Day 1（2026-06-05）**：Python 速通 + asyncio
-- ✅ **Day 2（2026-06-08）**：Pydantic 进阶 + LLM 三件套笔记
+- ✅ **Day 2（2026-06-08）**：Pydantic 进阶 + LLM 三件套 + Spring AI 晚段调通 qwen3.7-plus
 - 详细见 `journal/week-01/` 和 `notes/`
 
 ## 学习路径
