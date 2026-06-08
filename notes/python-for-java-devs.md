@@ -139,6 +139,191 @@ user = User.model_validate_json('{"name": "Alice", "age": 30}')
 print(user.model_dump_json())  # {"name":"Alice","age":30,"email":null}
 ```
 
+### 必填字段：`Field(...)`
+
+`...`（Ellipsis，省略号字面量）表示「无默认值，必填」。
+
+```python
+from pydantic import BaseModel, Field
+
+class User(BaseModel):
+    name: str = Field(...)        # 必填
+    age: int = 30                 # 可选，默认 30
+    email: str | None = None      # 可选，默认 None
+
+User(name="Alice")        # ✓
+User()                    # ❌ ValidationError: missing field 'name'
+```
+
+**Java 类比** ≈ Lombok `@NonNull` / `@Builder.Default`。
+
+### 字段约束：Bean Validation 风味
+
+Pydantic V2 把所有约束都收到 `Field()` 里：
+
+| Pydantic Field 参数 | Java Bean Validation | 说明 |
+|---------------------|---------------------|------|
+| `ge=0, le=150` | `@Min(0) @Max(150)` | 数值范围（含端点） |
+| `gt=0, lt=100` | `@Positive` / 严格大于 | 数值范围（不含端点） |
+| `min_length=1, max_length=50` | `@Size(min=1, max=50)` | 字符串长度 |
+| `pattern=r"^[\w\.-]+@[\w\.-]+$"` | `@Pattern(regexp="...")` | 正则 |
+| `default=None` | `= null` | 默认值 |
+
+```python
+class SearchQuery(BaseModel):
+    keyword: str = Field(min_length=1, max_length=200, description="搜索关键词")
+    page: int = Field(default=1, ge=1, description="页码")
+    size: int = Field(default=20, ge=1, le=100, description="每页条数")
+    temperature: float = Field(ge=0.0, le=2.0, description="LLM 温度参数")
+```
+
+### description：LLM 场景的命脉
+
+`description` 是 Pydantic 字段的「自然语言描述」，**会出现在 JSON Schema 中**——LLM 工具调用时靠它理解每个字段含义。
+
+```python
+class ToolCall(BaseModel):
+    name: str = Field(description="工具名称，如 'search'、'calculator'")
+    args: dict = Field(description="工具参数，键值对")
+    confidence: float = Field(ge=0, le=1, description="置信度，0~1")
+```
+
+**Java 类比** ≈ Swagger 的 `@Schema(description = "...")`。
+
+> **经验**：description 写得越清楚，LLM 输出的准确率越高。这是 Day4 写 Agent 时的**第一杠杆**。
+
+### 字段别名：`Field(alias=...)`
+
+外部 JSON 字段名跟 Python 命名规范不一致时，用 alias 接住：
+
+```python
+from pydantic import ConfigDict
+
+class User(BaseModel):
+    user_name: str = Field(alias="userName")
+    model_config = ConfigDict(populate_by_name=True)   # 两种名字都能传
+
+# 都 OK：
+User(userName="alice")
+User(user_name="alice")
+```
+
+**Java 类比** ≈ Jackson 的 `@JsonProperty("userName")`。
+
+LLM 经常输出驼峰或全大写字段名，alias 是接住的关键。
+
+### frozen：软约束 vs final 硬约束
+
+`frozen=True` 让字段构造后**不可重新赋值**：
+
+```python
+class Point(BaseModel):
+    x: float = Field(frozen=True)
+    y: float = Field(frozen=True)
+
+p = Point(x=1, y=2)
+p.x = 99     # ❌ ValidationError: Instance is frozen
+```
+
+**但这跟 Java `final` 完全不同**：
+
+| 维度 | Java `final` | Pydantic `frozen=True` |
+|------|-------------|----------------------|
+| 强制时机 | **编译期** | **运行期**（仅赋值时拦截） |
+| 强制主体 | JVM 编译器 | Pydantic 框架的 `__setattr__` |
+| 强度 | 硬约束 | 软约束（可绕过） |
+
+**绕过的方法**：
+
+```python
+p.__dict__['x'] = 99                    # ✓ 直接改 __dict__
+object.__setattr__(p, 'x', 99)         # ✓ 绕过 Pydantic 钩子
+```
+
+> **本质**：`final` 是**语言契约**（编译器背书），`frozen` 是**框架契约**（Pydantic 背书）。Python 哲学：「我们都是成年人，约定即可」。
+
+**工程建议**：把 `frozen` 当**防御性编程的提示**，别当**安全边界**。LLM 输出场景下**别用**（要中间修补），配置 / 枚举 / 值对象里**可以用**。
+
+### ⚠️ 陷阱：字段名别用 Python builtin
+
+Pydantic 字段名如果和 Python builtin 同名（如 `int` / `str` / `list`），会触发「注解解析时 builtin 被遮蔽」的坑：
+
+```python
+from typing import Optional
+
+class Boo(BaseModel):
+    int: Optional[int] = None   # ❌ Pydantic 解析注解时把 int 当成 None，不是 builtin
+```
+
+**机制**：类体执行 `int: Optional[int] = None` 时，先求注解（此时 `int` 还是 builtin），再执行赋值 `int = None`，**builtin `int` 被遮蔽**。Pydantic 后续解析注解时找 `int` 拿到 `None`，认为字段类型是 `Optional[None]`，校验时只接受 `None`。
+
+**修复**：
+
+```python
+# 方式 1：重命名（推荐）
+class Boo(BaseModel):
+    value: Optional[int] = None
+
+# 方式 2：用 alias 保留外部字段名
+class Boo(BaseModel):
+    int_: Optional[int] = Field(default=None, alias='int')
+    model_config = ConfigDict(populate_by_name=True)
+```
+
+**避坑清单**：`int` / `str` / `list` / `dict` / `set` / `tuple` / `bool` / `bytes` / `float` —— 这些 builtin 都不能直接做字段名。类比 Java 避开 `Object` / `String` / `Class` 等类名作字段名。
+
+### 严格模式：`ConfigDict(strict=True)`
+
+Pydantic V2 **默认是 lax 模式**（宽松），会自动强转类型。这跟 Java 强类型直觉相反：
+
+```python
+import json
+from pydantic import ConfigDict
+
+class Order(BaseModel):
+    order_id: int
+    amount: float
+    currency: str = "CNY"
+
+raw = '{"order_id": "12345", "amount": "99.5", "currency": 100}'
+
+# 默认 lax 模式：✅ 不报错，全部强转
+order = Order.model_validate(json.loads(raw))
+# order_id=12345, amount=99.5, currency='100'
+
+# 严格模式：❌ 3 个字段都报错
+class StrictOrder(BaseModel):
+    model_config = ConfigDict(strict=True)
+    order_id: int
+    amount: float
+    currency: str
+
+StrictOrder.model_validate(json.loads(raw))
+# ValidationError: 3 validation errors
+```
+
+**单字段也能局部开 strict**：
+
+```python
+class Order(BaseModel):
+    order_id: int = Field(strict=True)   # 只这个字段严格
+    amount: float
+    currency: str = "CNY"
+```
+
+**Java 类比**：
+
+| Pydantic | Jackson |
+|---------|---------|
+| 默认 lax（会强转） | Jackson 默认会失败类型不匹配 |
+| `ConfigDict(strict=True)` | Jackson 默认行为 |
+
+**LLM 场景建议**：
+- 接收 LLM 输出时**用 lax**（容忍 `"123"` → `123` 的转换）
+- 自己代码内部传递时**用 strict**（早爆早修）
+
+---
+
 ## 依赖管理
 
 ```bash
