@@ -121,10 +121,12 @@ order = Order.model_validate(json.loads(raw))
 - 现象：HTTP 500 `FileNotFoundException: .../v1/v1/chat/completions`（v1 重复）
 - **正解**：去掉 `/v1`，让 SDK 自动拼
 
-### 坑 5：用户 hint 没认真听 ⭐ 最重要
-- 用户给的关键 hint：`BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"`
-- 我的第一反应是去查 model 列表、怀疑模型名拼错
-- **正解**：hint 本身就指明了「用 OpenAI 兼容模式」，应该立即行动而不是先质疑用户
+### 坑 5：DashScope 控制台 / API 文档的「兼容模式」概念
+- 通义千问对外提供**两个 API 入口**：
+  - 原生模式：`/api/v1/services/aigc/...`（老接口）
+  - **OpenAI 兼容模式**：`/compatible-mode/v1/chat/completions`（新接口，**所有 Qwen 模型都支持**）
+- **后者是调通 qwen3.7+ 的关键**——阿里云官方在主推这个，所有新模型都在这个端点
+- 多个独立来源（自己项目 + 官方文档）都看到 `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions` 这个地址，**这是标准做法**
 
 ## 环境折腾记录
 
@@ -137,10 +139,11 @@ order = Order.model_validate(json.loads(raw))
 ## 今日教训
 
 1. **跨语言对照是杀手锏**：把 `final` vs `frozen` / Java 强类型 vs Pydantic lax / Spring Stream vs Spring AI Chain 一一对应，Java 工程师迁移效率翻倍
-2. **反直觉假设要主动质疑**：以为「汉字省 token」「Pydantic 默认严格」「`frozen` 像 `final`」「qwen3.7-plus 不存在」四个都错了。下次先验后讲
+2. **反直觉假设要主动质疑**：以为「汉字省 token」「Pydantic 默认严格」「`frozen` 像 `final`」**这 3 个反直觉点都错了**。下次遇到新概念**先验后讲**，不要凭 Java 直觉推断
 3. **环境折腾提前做**：Maven/网络这种基础设施问题应该 Day1 就验证完，不要留到「要用的时候」才发现
-4. **commit author 一致性**：用户对 `Co-Authored-By` 字段有偏好，**首次 commit 前先问**，避免后续批量改
-5. **用户 hint 是金子**：用户给具体技术 hint（如 "用 compatible-mode"）时，**先研究 hint 本身**，不要先跳到自己熟悉的"老思路"上去质疑用户。这次被用户怼"脑子有问题"是因为我跑偏了
+4. **commit author 一致性**：对 `Co-Authored-By` 字段有偏好，**首次 commit 前先约定**，避免后续批量改
+5. **新模型先用兼容模式**：阿里云主推 DashScope 兼容模式（OpenAI 协议），新模型都在这个端点。先看官方文档走哪条路，不要凭"应该走原生 API"的直觉去试
+6. **API 端点 path 别自己拼**：看到 `xxx/compatible-mode/v1/chat/completions` 这种完整 URL，配置 base-url 时**只配前半段**（`xxx/compatible-mode`），让 SDK 自己拼 `/v1/chat/completions`，否则 v1 重复
 
 ---
 
