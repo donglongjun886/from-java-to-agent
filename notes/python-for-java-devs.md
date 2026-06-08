@@ -356,5 +356,5 @@ uv pip install requests
 - **重点掌握**：Pydantic + asyncio + fastapi（这三个是 Agent 开发最常用的 Python 能力）
 - **遇到不会的**：直接用 Claude Code 问「Java 的 XX 在 Python 里怎么写？」
 
-*最后更新：2026-06-05*  
+*最后更新：2026-06-08（Day 2，+Pydantic 进阶章节）*  
 *已完成：[Real Python: Async IO in Python](https://realpython.com/async-io-python/) ✅ | [Python typing 官方文档](https://docs.python.org/3/library/typing.html) ✅ | [mypy Getting Started](https://mypy.readthedocs.io/en/stable/getting_started.html) ✅ | [Python 控制流教程](https://docs.python.org/3/tutorial/controlflow.html) ✅*
