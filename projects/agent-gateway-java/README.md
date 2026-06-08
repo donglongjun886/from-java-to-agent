@@ -99,10 +99,33 @@ public class ChatController {
 | 组件 | 版本 |
 |------|------|
 | Spring Boot | 3.3.5 |
-| Spring AI Alibaba | 1.0.0 (BOM) |
+| Spring AI | 1.0.0 (BOM) |
+| spring-ai-starter-model-openai | (由 BOM 管理) |
 | Java | 17 |
 
-如果拉不到依赖，把 `spring-ai-alibaba-bom` 版本号改到当前最新（如 `1.0.0-M6.1` / `1.0.0-RC1` 等）。
+## ⚠️ 关键坑：DashScope 兼容模式
+
+**不要用 `spring-ai-alibaba-starter-dashscope`**（走 DashScope 原生 API `/api/v1/services/aigc/...`），对 qwen3.7+ 等新模型不识别，会返回 `url error`。
+
+**正确做法：用 `spring-ai-starter-model-openai` + DashScope 兼容模式**：
+
+```yaml
+spring:
+  ai:
+    openai:
+      api-key: ${DASHSCOPE_API_KEY}   # 通义千问 Key 直接用
+      base-url: https://dashscope.aliyuncs.com/compatible-mode   # 注意：不要带 /v1
+      chat:
+        options:
+          model: qwen3.7-plus    # 兼容模式支持所有 Qwen 模型
+```
+
+**base-url 千万不要带 `/v1`**，否则 Spring AI 会拼成 `/compatible-mode/v1/v1/chat/completions`（v1 重复）。
+
+**为什么这样能行**：
+- DashScope 提供了 OpenAI 兼容的 API endpoint（`/compatible-mode/v1/chat/completions`）
+- 所有 Qwen 模型（qwen-turbo / qwen-plus / qwen-max / qwen3.x / qwen3.7.x）都支持
+- 复用 Spring AI 官方的 OpenAI starter，比等 alibaba 库更新要快
 
 ---
 
