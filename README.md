@@ -14,14 +14,22 @@
 
 既然底层思维模型相通，缺的只是 Python 语法和 AI 领域知识。这个项目记录了整个转型过程——从写出第一个 Hello Agent，到构建完整的多 Agent 协同系统。
 
+## 当前进度
+
+- ✅ **Day 1（2026-06-05）**：Python 速通 + asyncio
+- ✅ **Day 2（2026-06-08）**：Pydantic 进阶 + LLM 三件套笔记
+- 详细见 `journal/week-01/` 和 `notes/`
+
 ## 学习路径
 
-| 周次 | 日期 | 主题 | 实战项目 |
+v4 计划采用 **2 条主线项目** 跨越 4 周，每条主线从启动到完成覆盖 2 周：
+
+| 周次 | 日期 | 主题 | 主线项目 |
 |------|------|------|----------|
-| 第1周 | 06/05 - 06/11 | Python 速通 + LLM 基础 | [Hello Agent](./projects/01-hello-agent/) — 命令行对话 Agent |
-| 第2周 | 06/12 - 06/18 | Prompt 工程 + Tool Calling + MCP | 多工具聚合 Agent + 自定义 MCP Server |
-| 第3周 | 06/19 - 06/25 | RAG + 向量数据库 + Agent 框架 | RAG 知识库问答系统 |
-| 第4周 | 06/26 - 07/02 | 多 Agent 协同 + 工程化 | 多 Agent 协作系统 + 全面复盘 |
+| **第1周** | 06/05 - 06/11 | Python 速通 + LLM 基础 + 评估入门 | **项目A 启动**：Agent 网关平台（Hello Agent → Tool Calling → MCP） |
+| **第2周** | 06/12 - 06/18 | LangGraph 编排 + MCP/A2A + 代码沙箱 | **项目A 完成**：带 MCP Server + LangGraph 的多工具 Agent 网关 |
+| **第3周** | 06/19 - 06/25 | RAG + 上下文工程 + Auth RBAC | **项目B 启动**：智能研报 Agent（RAG + 评估体系） |
+| **第4周** | 06/26 - 07/02 | Multi-Agent + Harness 深度 + 综合复盘 | **项目B 完成**：多 Agent 协同研报系统（沙箱 + 权限） |
 
 详细计划见 [learning-plan.md](./learning-plan.md)。
 
@@ -31,20 +39,23 @@
 from-java-to-agent/
 ├── learning-plan.md       # 四周学习路径与里程碑
 ├── journal/               # 学习日志与每周复盘
-├── projects/              # 实战练习项目
-│   ├── 01-hello-agent/    # LLM API 调用 + 第一个 Agent
-│   ├── 02-tool-calling/   # Function Calling + MCP 协议
-│   ├── 03-rag-system/     # RAG 知识库 + 向量检索
-│   └── 04-multi-agent/    # 多 Agent 协同系统
 ├── notes/                 # 学习笔记（按主题）
-└── resources/             # 资料索引
+├── resources/             # 资料索引
+└── projects/
+    ├── agent-gateway/             # 项目A：Agent 网关平台（Week 1-2）
+    ├── smart-report-agent/        # 项目B：智能研报 Agent（Week 3-4）
+    ├── agent-gateway-java/        # 晚段对照：Spring AI / LangChain4j
+    └── smart-report-agent-java/   # 晚段对照：LangChain4j + PGVector
 ```
 
 ## 技术栈
 
-- **语言**: Python 3.12
+- **语言**: Python 3.12（AI Agent 侧），Java 17（对照实现）
 - **主力模型**: DeepSeek V4 Pro（`deepseek-chat`），OpenAI 兼容 API
-- **核心框架**: LangGraph / OpenAI SDK / MCP 协议 / CrewAI
+- **核心框架**: LangGraph（编排基座）/ OpenAI SDK / MCP 协议 / A2A 协议 / CrewAI
+- **评估与可观测**: RAGAS（评估）/ Langfuse（全链路追踪）
+- **代码沙箱**: E2B / Docker
+- **Java 对照栈**: LangChain4j / Spring AI
 - **包管理**: uv
 
 ## 快速开始
@@ -66,14 +77,18 @@ uv pip install -r requirements.txt
 # DEEPSEEK_API_KEY=sk-xxx
 
 # 5. 运行第一个 Agent
-python projects/01-hello-agent/main.py
+python projects/agent-gateway/main.py
 ```
 
 ## 核心公式
 
+v4 用更工程的视角重新定义 Agent：
+
 ```
-Agent = LLM（大脑）+ Planning（规划）+ Memory（记忆）+ Tools（工具）+ Feedback Loop（反馈环）
+Agent = Model（大脑）+ Harness（框架）+ Feedback Loop（反馈环）
 ```
+
+其中 `Harness = 文件系统 + 工具 + 记忆 + 沙箱 + 上下文`——模型之外的一切工程基建。
 
 ## License
 
