@@ -16,13 +16,14 @@
 
 ## 当前进度
 
-- ✅ **Day 1（2026-06-05）**：Python 速通 + asyncio
-- ✅ **Day 2（2026-06-08）**：Pydantic 进阶 + LLM 三件套 + Spring AI 晚段调通 qwen3.7-plus
+- ✅ **Day 1（06/05）**：Python 速通 + asyncio
+- ✅ **Day 2（06/08）**：Pydantic 进阶 + LLM 三件套 + Spring AI 晚段调通 qwen3.7-plus
+- ✅ **Day 3（06/09）**：Chat Completions API + SSE 流式 + System Prompt 设计 + Agent 架构公式
 - 详细见 `journal/week-01/` 和 `notes/`
 
 ## 学习路径
 
-v4 计划采用 **2 条主线项目** 跨越 4 周，每条主线从启动到完成覆盖 2 周：
+v5 计划采用 **2 条主线项目** 跨越 4 周，基于真实面经做了 4 项微调（评测前置 + 记忆层显性化 + GraphRAG 升级 + 行业视野习惯）：
 
 | 周次 | 日期 | 主题 | 主线项目 |
 |------|------|------|----------|
@@ -77,7 +78,7 @@ uv pip install -r requirements.txt
 # DEEPSEEK_API_KEY=sk-xxx
 
 # 5. 运行第一个 Agent
-python projects/agent-gateway/main.py
+python projects/01-hello-agent/main.py
 ```
 
 ## 核心公式
