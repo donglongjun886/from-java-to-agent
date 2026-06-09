@@ -37,7 +37,7 @@
 | **Day1 (06/05 五)** | 环境 + Python 速通 | Python 类型系统、控制流、异步 IO（asyncio）、包管理（uv/pip） | asyncio ≈ CompletableFuture；list comprehension ≈ Stream API |
 | **Day2 (06/08 一)** | Python 进阶 + LLM 概念 | Pydantic 数据模型、LLM 基础（Token/Temperature/Context Window） | Pydantic ≈ Lombok @Data + @Validated + Jackson |
 | **Day3 (06/09 二)** | LLM API + Agent 概念 | OpenAI Chat Completions API、流式响应（SSE）、System Prompt、Agent 架构定义 | Agent = Model + Harness + Feedback Loop |
-| **Day4 (06/10 三)** | **项目A（上）+ 评估入门** | 实现多轮对话 Agent、流式输出、错误重试、Token 统计、**LLM-as-a-Judge 评估 Agent 输出质量** | Harness = 文件系统 + 工具 + 记忆 + 沙箱 + 上下文；评估驱动开发 |
+| **Day4 (06/10 三)** | **项目A（上）+ 评估入门** | 实现多轮对话 Agent、流式输出、错误重试、Token 统计、**LLM-as-a-Judge 评估 Agent 输出质量**<br>🎯 从今天起每个实验带 baseline 对比（"怎么证明它更好"） | Harness = 文件系统 + 工具 + 记忆 + 沙箱 + 上下文；评估驱动开发 |
 | **Day5 (06/11 四)** | 项目A（下）+ 周复盘 | 完成 Hello Agent + 评估框架、Harness 概念笔记、输出第一份评估报告 | — |
 
 ### 本周产出
@@ -71,7 +71,7 @@
 |----|------|------|----------|
 | **Day6 (06/12 五)** | **LangGraph 入门** + Tool Use | StateGraph/Node/Edge/条件路由/Checkpoint、Function Calling 完整流程 | LangGraph ≈ Flowable BPMN；用图编排替代手写 if-else |
 | **Day7 (06/15 一)** | MCP 协议深度 + **代码沙箱** | MCP 架构/Transport/三原语、FastMCP SDK、**E2B/Docker 沙箱安全执行代码** | MCP ≈ USB-C；沙箱 = Agent 自主执行的安全边界 |
-| **Day8 (06/16 二)** | A2A 协议 + 项目A（上） | A2A 1.0 概念（Agent 发现/任务委派）、项目A 框架搭建（LangGraph 编排 + 多工具集成） | MCP 连接工具，A2A 连接 Agent |
+| **Day8 (06/16 二)** | A2A 协议 + 项目A（上）<br>🧠 记忆层四种类型显性化 | A2A 1.0 概念（Agent 发现/任务委派）、项目A 框架搭建（LangGraph 编排 + 多工具集成）、**记忆层分类法：短期窗口/长期语义/情节摘要/事实 KV** | MCP 连接工具，A2A 连接 Agent |
 | **Day9 (06/17 三)** | 项目A：核心实现 | 多工具 Agent 网关完整实现：Tool + MCP Server + 沙箱 + 容错熔断 + 可观测 | 工具链编排 ≈ Chain of Responsibility；外部验证 > 自评 |
 | **Day10 (06/18 四)** | 项目A：压测 + 复盘 | **压测报告（QPS/P99/成本）、架构图/时序图**、对比原生 vs MCP 优劣、周复盘 | 用传统高并发标准度量 Agent，体现 Java 工程优势 |
 
@@ -108,7 +108,7 @@
 | 天 | 主题 | 内容 | 核心认知 |
 |----|------|------|----------|
 | **Day11 (06/19 五)** | Embedding + 向量数据库 | 文本向量化、相似度计算、ChromaDB 入门、文档切分策略（Chunking） | Embedding ≈ Lucene 倒排索引；向量DB ≈ ES kNN |
-| **Day12 (06/22 一)** | RAG 架构 + 上下文工程 | 完整 RAG Pipeline、混合检索+Rerank、渐进式披露、上下文重置、GraphRAG 概念 | Context Window 是稀缺资源；状态在文件里不在窗口里 |
+| **Day12 (06/22 一)** | RAG 架构 + 上下文工程 | 完整 RAG Pipeline、混合检索+Rerank、渐进式披露、上下文重置、**GraphRAG 最小 demo（Neo4j + 知识图谱构建→混合检索）** | Context Window 是稀缺资源；状态在文件里不在窗口里 |
 | **Day13 (06/23 二)** | **Auth RBAC + 评估体系** | Tool 级权限校验（Agent 执行时继承用户 RBAC）、RAGAS 评估、Langfuse 全链路追踪 | Auth RBAC ≈ Spring Security Filter Chain for Agents |
 | **Day14 (06/24 三)** | 项目B（上） | RAG 研报 Agent 框架搭建：文档上传→向量索引→带权限的问答+引用溯源 | — |
 | **Day15 (06/25 四)** | 项目B（下）+ 周复盘 | RAGAS 评估跑分、上下文工程策略落地、**压测+成本报告**、整理笔记 | — |
@@ -182,6 +182,8 @@
 3. **输出（30min）**：写笔记，记录今日收获与问题
 
 **晚段（30-45min）**：Java 栈 AI 能力对比 + 面试准备
+
+**行业视野（每周 1 次，10-15min）**：扫 GitHub trending 的 Agent/LLM 相关项目 README，不精读但能说出「解决什么问题 + 核心架构」。目标：面试被问「最近看了什么项目」时能展开 3 分钟。
 - 用 Java 对照实现白天 Python 项目的关键模块（不写完整项目，只写核心代码片段）
 - 面经题刷题（从第2周开始，2-3 道/天）
 - 项目技术复盘文档
