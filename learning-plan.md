@@ -185,7 +185,9 @@
 
 **行业视野（每周 1 次，10-15min）**：扫 GitHub trending 的 Agent/LLM 相关项目 README，不精读但能说出「解决什么问题 + 核心架构」。目标：面试被问「最近看了什么项目」时能展开 3 分钟。
 
-**开源贡献（Week 3-4，碎片时间）**：给 Agent 生态项目（LangGraph / FastMCP / CrewAI / ChromaDB）提 PR。从 good first issue 或 doc fix 入手，目标是简历上有一个 merged PR。
+**开源贡献（Week 3-4，碎片时间）**：给 Agent 生态项目（LangGraph / FastMMP / CrewAI / ChromaDB）提 PR。从 good first issue 或 doc fix 入手，目标是简历上有一个 merged PR。
+
+**技术输出（Week 2 起，碎片时间）**：把学到的东西写成技术博客/公众号文章。一篇高质量技术文章的效果远超外包项目——面试官搜到你的文章本身就是信任背书。选题方向：Java 工程师视角的 Agent 开发、Spring AI 实战踩坑、MCP 协议入门等。
 
 ### 晚段专项计划
 
