@@ -184,9 +184,8 @@
 **晚段（30-45min）**：Java 栈 AI 能力对比 + 面试准备
 
 **行业视野（每周 1 次，10-15min）**：扫 GitHub trending 的 Agent/LLM 相关项目 README，不精读但能说出「解决什么问题 + 核心架构」。目标：面试被问「最近看了什么项目」时能展开 3 分钟。
-- 用 Java 对照实现白天 Python 项目的关键模块（不写完整项目，只写核心代码片段）
-- 面经题刷题（从第2周开始，2-3 道/天）
-- 项目技术复盘文档
+
+**开源贡献（Week 3-4，碎片时间）**：给 Agent 生态项目（LangGraph / FastMCP / CrewAI / ChromaDB）提 PR。从 good first issue 或 doc fix 入手，目标是简历上有一个 merged PR。
 
 ### 晚段专项计划
 
