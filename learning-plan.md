@@ -38,7 +38,7 @@
 | **Day2 (06/08 一)** | Python 进阶 + LLM 概念 | Pydantic 数据模型、LLM 基础（Token/Temperature/Context Window） | Pydantic ≈ Lombok @Data + @Validated + Jackson |
 | **Day3 (06/09 二)** | LLM API + Agent 概念 | OpenAI Chat Completions API、流式响应（SSE）、System Prompt、Agent 架构定义 | Agent = Model + Harness + Feedback Loop |
 | **Day4 (06/10 三)** | **项目A（上）+ 评估入门** | 实现多轮对话 Agent、流式输出、错误重试、Token 统计、**LLM-as-a-Judge 评估 Agent 输出质量**<br>🎯 从今天起每个实验带 baseline 对比（"怎么证明它更好"） | Harness = 文件系统 + 工具 + 记忆 + 沙箱 + 上下文；评估驱动开发 |
-| **Day5 (06/11 四)** | 项目A（下）+ 周复盘 | 完成 Hello Agent + 评估框架、Harness 概念笔记、输出第一份评估报告 | — |
+| **Day5 (06/11 四)** | 项目A（下）+ Tool Calling 初体验 + 周复盘 | Hello Agent 整合、**Tool Calling 概念 demo（tools 参数 + 模型自主调用决策）**、Harness 概念笔记、第一份评估报告、周复盘 | Function Calling 是 Agent 从「聊天」到「干活」的质变点 |
 
 ### 本周产出
 - [ ] `projects/agent-gateway/` — 命令行 Agent（流式 + 重试 + 成本统计 + **评估打分**）
