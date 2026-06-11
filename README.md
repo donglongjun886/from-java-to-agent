@@ -19,6 +19,7 @@
 - ✅ **Day 1（06/05）**：Python 速通 + asyncio
 - ✅ **Day 2（06/08）**：Pydantic 进阶 + LLM 三件套 + Spring AI 晚段调通 qwen3.7-plus
 - ✅ **Day 3（06/09）**：Chat Completions API + SSE 流式 + System Prompt 设计 + Agent 架构公式
+- ✅ **Day 4（06/10）**：LLM-as-a-Judge 四维度评估器 + Feedback Loop 集成 + A/B Baselining
 - 详细见 `journal/week-01/` 和 `notes/`
 
 ## 学习路径
