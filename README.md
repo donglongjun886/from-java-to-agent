@@ -21,6 +21,7 @@
 - ✅ **Day 3（06/09）**：Chat Completions API + SSE 流式 + System Prompt 设计 + Agent 架构公式
 - ✅ **Day 4（06/10）**：LLM-as-a-Judge 四维度评估器 + Feedback Loop 集成 + A/B Baselining
 - ✅ **Day 5（06/11）**：Tool Calling 概念初体验 + Week 1 整合产出 + 周复盘
+- ✅ **Day 6（06/12）**：LangGraph 核心概念（StateGraph/Node/Edge/Router）+ 用图编排重写 Tool Calling
 - 详细见 `journal/week-01/` 和 `notes/`
 
 ## 学习路径
