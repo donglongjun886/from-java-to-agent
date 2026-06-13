@@ -87,7 +87,7 @@
 - [ ] 🌙 `notes/面试题-Agent基础.md` — Agent 基础类面经题（15 道）
 
 ### 关键资源
-- [LangGraph 文档](https://langchain-ai.github.io/langgraph/)
+- [LangGraph 文档](https://docs.langchain.com/oss/python/langgraph/quickstart)
 - [MCP 协议规范](https://modelcontextprotocol.io/)
 - [FastMCP GitHub](https://github.com/jlowin/fastmcp)
 - [FastAPI 文档](https://fastapi.tiangolo.com/)（重点看 StreamingResponse / SSE）
@@ -132,7 +132,7 @@
 
 ### 关键资源
 - [LlamaIndex 文档](https://docs.llamaindex.ai/)（核心：Data Ingestion / Indexing / Querying 三阶段）
-- [LangGraph 文档](https://langchain-ai.github.io/langgraph/)
+- [LangGraph 文档](https://docs.langchain.com/oss/python/langgraph/quickstart)
 - [ChromaDB 文档](https://docs.trychroma.com/)
 - [RAGAS 评估框架](https://docs.ragas.io/)
 - [Langfuse 可观测性](https://langfuse.com/)
@@ -233,7 +233,7 @@
 | Anthropic Tool Use 指南 | https://docs.anthropic.com/en/docs/build-with-claude/tool-use | ⭐⭐⭐ |
 | Anthropic Context Engineering | https://docs.anthropic.com/en/docs/build-with-claude/context-engineering | ⭐⭐⭐ |
 | MCP 协议规范 | https://modelcontextprotocol.io/ | ⭐⭐⭐ |
-| LangGraph 文档 | https://langchain-ai.github.io/langgraph/ | ⭐⭐⭐ |
+| LangGraph 文档 | https://docs.langchain.com/oss/python/langgraph/quickstart | ⭐⭐⭐ |
 | LlamaIndex 文档 | https://docs.llamaindex.ai/ | ⭐⭐⭐ |
 | FastAPI 文档 | https://fastapi.tiangolo.com/ | ⭐⭐⭐ |
 | OpenAI Agents SDK | https://github.com/openai/openai-agents-python | ⭐⭐ |
