@@ -37,6 +37,17 @@
 - `/docs` 自动生成 Swagger 文档
 - 为项目 A Agent 网关打底
 
+## Part 4: 代码沙箱概览 ✅
+
+### 资源
+- E2B 文档 + Code Interpreter SDK README
+- 核心：`Sandbox.create()` + `sandbox.run_code()` 隔离执行
+
+### 关键认知
+- E2B = 一次性 Linux VM，执行完自动销毁
+- 沙箱 ≈ JVM SecurityManager 但 OS 级别隔离
+- Week 2 项目 A 用 Docker，Week 4 需要生产级接 E2B
+
 ### 2 个 commit
 ```
 b2ca754 feat(hello-agent): Day 7 Part3 — FastAPI 服务化 Agent
