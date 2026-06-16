@@ -1,14 +1,15 @@
 import json
+import os
 import sys
 from openai import OpenAI
 
 # ── 配置 ──
-API_KEY = "YOUR_DASHSCOPE_API_KEY"
+API_KEY = os.getenv("DASHSCOPE_API_KEY", "your-api-key-here")
 BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 MODEL = "qwen3.7-max"
 
 # ── 读取 server.py ──
-CODE_PATH = "/path/to/project/projects/02-tool-calling/mcp-server/server.py"
+CODE_PATH = os.path.join(os.path.dirname(__file__), "server.py")
 with open(CODE_PATH, "r", encoding="utf-8") as f:
     code_content = f.read()
 
