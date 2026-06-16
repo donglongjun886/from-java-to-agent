@@ -23,6 +23,7 @@
 - ✅ **Day 5（06/11）**：Tool Calling 概念初体验 + Week 1 整合产出 + 周复盘
 - ✅ **Day 6（06/12）**：LangGraph 核心概念（StateGraph/Node/Edge/Router）+ 用图编排重写 Tool Calling
 - ✅ **Day 7（06/15）**：MCP 协议深度 + FastAPI Agent 服务化（HTTP/SSE）
+- ✅ **Day 8（06/16）**：A2A 概览 + 记忆层分类 + 项目A Agent 网关框架搭建
 - 详细见 `journal/week-01/` 和 `notes/`
 
 ## 学习路径
