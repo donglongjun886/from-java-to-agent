@@ -28,6 +28,7 @@ from langchain_core.messages import (
     BaseMessage, HumanMessage, SystemMessage, ToolMessage, AIMessage
 )
 from langchain_openai import ChatOpenAI
+from sandbox import SandboxExecutor
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
@@ -42,6 +43,7 @@ _mcp_initialized = False
 _mcp_session = None
 _mcp_context = None
 _mcp_lock = asyncio.Lock()
+_sandbox = SandboxExecutor()
 
 
 def _tool_spec_to_openai_format(tool) -> dict:
@@ -86,17 +88,59 @@ async def init_mcp_tools() -> list[dict]:
         return _mcp_tools
 
 
+# ============================================================
+# 工具调用熔断器 — 容错保护
+# ============================================================
+
+_tool_failures: dict[str, list[float]] = {}
+_CIRCUIT_TIMEOUT = 10  # MCP 调用超时（秒）
+_CIRCUIT_RETRIES = 2   # 超时/失败后重试次数
+_CIRCUIT_COOLDOWN = 30  # 熔断冷却时间（秒）
+_failures_lock = asyncio.Lock()
+
+
 async def execute_tool_mcp(name: str, args: dict) -> str:
-    """通过 MCP Client 执行工具调用"""
+    """通过 MCP Client 执行工具调用（含熔断保护）"""
     if not _mcp_session:
         return f"MCP 会话未初始化: {name}"
-    try:
-        result = await _mcp_session.call_tool(name, args)
-        # result.content 是 list[TextContent | ImageContent | ...]
-        texts = [c.text for c in result.content if hasattr(c, "text")]
-        return "\n".join(texts) if texts else str(result.content)
-    except Exception as e:
-        return f"工具执行失败 [{name}]: {e}"
+
+    # ① 检查熔断状态：3 次连续失败 → 熔断
+    now = time.time()
+    async with _failures_lock:
+        recent = [t for t in _tool_failures.get(name, []) if now - t < _CIRCUIT_COOLDOWN]
+        _tool_failures[name] = recent
+    if len(recent) >= 3:
+        return f"[降级] 工具 {name} 暂时不可用，请稍后重试"
+
+    # ② 带指数退避的重试循环
+    last_error = ""
+    for attempt in range(_CIRCUIT_RETRIES + 1):  # 1 次初始 + 2 次重试
+        try:
+            result = await asyncio.wait_for(
+                _mcp_session.call_tool(name, args),
+                timeout=_CIRCUIT_TIMEOUT,
+            )
+            # 成功 → 清除失败记录
+            async with _failures_lock:
+                if name in _tool_failures:
+                    del _tool_failures[name]
+            texts = [c.text for c in result.content if hasattr(c, "text")]
+            return "\n".join(texts) if texts else str(result.content)
+        except asyncio.TimeoutError:
+            last_error = f"超时({_CIRCUIT_TIMEOUT}s)"
+        except Exception as e:
+            last_error = str(e)
+
+        if attempt < _CIRCUIT_RETRIES:
+            backoff = 2 ** attempt  # 1s, 2s
+            await asyncio.sleep(backoff)
+
+    # ③ 全部重试失败 → 记录并降级
+    async with _failures_lock:
+        _tool_failures.setdefault(name, []).append(time.time())
+        # 清理超过冷却窗口的记录
+        _tool_failures[name] = [t for t in _tool_failures[name] if time.time() - t < _CIRCUIT_COOLDOWN]
+    return f"[降级] 工具 {name} 暂时不可用，请稍后重试"
 
 
 async def close_mcp():
@@ -288,6 +332,25 @@ async def llm_node(state: AgentState) -> dict:
 
     temperature = state.get("temperature", 0.3)
     tools = await init_mcp_tools()
+    # 确保沙箱工具始终可用（补充 MCP 工具列表）
+    sandbox_spec = {
+        "type": "function",
+        "function": {
+            "name": "execute_code",
+            "description": "在受限沙箱中执行 Python 代码。仅支持安全内置函数（print, len, range, int, float, str, list, dict, sum, min, max, abs, round, sorted, enumerate, zip, map, filter）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string", "description": "要执行的 Python 代码"},
+                    "timeout": {"type": "integer", "description": "最大执行时间（秒），默认 5", "default": 5},
+                },
+                "required": ["code"],
+            },
+        },
+    }
+    if not any(t["function"]["name"] == "execute_code" for t in tools):
+        tools = tools + [sandbox_spec]
+
     node_model = ChatOpenAI(
         model="deepseek-chat",
         api_key=os.getenv("DEEPSEEK_API_KEY"),
@@ -316,7 +379,14 @@ async def tool_node(state: AgentState) -> dict:
             continue
 
         stats.tool_calls_count += 1
-        result = await execute_tool_mcp(tc["name"], tc["args"])
+        # 代码沙箱走本地执行，避免 MCP 进程间通信开销
+        if tc["name"] == "execute_code":
+            code = tc["args"].get("code", "")
+            timeout_val = tc["args"].get("timeout", 5)
+            sandbox_res = await asyncio.to_thread(_sandbox.execute, code, timeout_val)
+            result = json.dumps(sandbox_res, ensure_ascii=False)
+        else:
+            result = await execute_tool_mcp(tc["name"], tc["args"])
         tool_msgs.append(ToolMessage(content=result, tool_call_id=tc["id"]))
     return {"messages": tool_msgs}
 

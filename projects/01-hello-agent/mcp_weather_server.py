@@ -17,6 +17,7 @@ Day 7 Part 2 — MCP 协议实战：将 get_weather + calculate 抽成独立 MCP
 import sys
 import asyncio
 import logging
+from pathlib import Path
 
 from mcp.server import Server
 from mcp.server.models import InitializationOptions, ServerCapabilities
@@ -25,6 +26,8 @@ import mcp.types as types
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger(__name__)
+
+_sandbox = None
 
 # ============================================================
 # 工具函数 — 和之前完全一样
@@ -37,10 +40,33 @@ def get_weather(city: str) -> str:
 
 
 def calculate(expression: str) -> str:
-    """执行数学计算"""
+    """执行数学计算，支持 + - * / ** 和括号"""
+    import ast
+    import operator as op
+
+    allowed_ops = {
+        ast.Add: op.add, ast.Sub: op.sub,
+        ast.Mult: op.mul, ast.Div: op.truediv,
+        ast.Pow: op.pow, ast.USub: op.neg,
+    }
+
+    def _eval(node):
+        if isinstance(node, ast.Expression):
+            return _eval(node.body)
+        if isinstance(node, ast.Constant):
+            return node.value
+        if isinstance(node, ast.BinOp):
+            return allowed_ops[type(node.op)](_eval(node.left), _eval(node.right))
+        if isinstance(node, ast.UnaryOp):
+            return allowed_ops[type(node.op)](_eval(node.operand))
+        raise ValueError(f"不支持的操作: {type(node).__name__}")
+
     try:
-        result = eval(expression, {"__builtins__": {}}, {})
+        tree = ast.parse(expression, mode='eval')
+        result = _eval(tree)
         return f"{expression} = {result}"
+    except (ValueError, SyntaxError):
+        return f"复杂表达式 '{expression}' 请使用 execute_code 工具执行"
     except Exception as e:
         return f"计算错误: {e}"
 
@@ -77,6 +103,18 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["expression"],
             },
         ),
+        types.Tool(
+            name="execute_code",
+            description="在受限沙箱中执行 Python 代码。仅支持安全内置函数（print, len, range, int, float, str, list, dict, sum, min, max, abs, round, sorted, enumerate, zip, map, filter）",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string", "description": "要执行的 Python 代码"},
+                    "timeout": {"type": "integer", "description": "最大执行时间（秒），默认 5", "default": 5},
+                },
+                "required": ["code"],
+            },
+        ),
     ]
 
 # ② 注册工具执行逻辑 — 等价于 tool_calling_demo.py 的 TOOL_MAP
@@ -87,6 +125,16 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
         result = get_weather(arguments["city"])
     elif name == "calculate":
         result = calculate(arguments["expression"])
+    elif name == "execute_code":
+        global _sandbox
+        if _sandbox is None:
+            sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agent-gateway"))
+            from sandbox import SandboxExecutor
+            _sandbox = SandboxExecutor()
+        import json
+        code = arguments.get("code", "")
+        timeout_val = arguments.get("timeout", 5)
+        result = json.dumps(_sandbox.execute(code, timeout_val), ensure_ascii=False)
     else:
         result = f"未知工具: {name}"
 

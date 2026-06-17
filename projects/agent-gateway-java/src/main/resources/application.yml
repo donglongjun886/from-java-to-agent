@@ -12,3 +12,10 @@ spring:
         options:
           model: qwen3.7-plus
           temperature: 0.7
+
+# LangChain4j + DeepSeek (OpenAI-compatible API)
+langchain4j:
+  openai:
+    api-key: ${DEEPSEEK_API_KEY}
+    base-url: https://api.deepseek.com/v1
+    model-name: deepseek-chat
