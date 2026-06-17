@@ -1,5 +1,6 @@
 package com.example.agentgateway.tool;
 
+import com.example.agentgateway.util.ExpressionParser;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.agent.tool.P;
 import org.springframework.stereotype.Component;
@@ -22,78 +23,9 @@ public class WeatherTools {
     @Tool("执行数学计算（支持加减乘除和括号）")
     public double calculate(@P("数学表达式，例如 1+2*3") String expression) {
         try {
-            return evaluate(expression);
+            return ExpressionParser.eval(expression);
         } catch (Exception e) {
             throw new RuntimeException("计算失败: " + expression + " — " + e.getMessage());
         }
-    }
-
-    /**
-     * Simple recursive descent parser for basic arithmetic (+, -, *, /, parentheses).
-     * Thread-safe: each invocation creates fresh state.
-     */
-    private double evaluate(String str) {
-        return new Object() {
-            int pos = -1, ch;
-
-            void nextChar() {
-                ch = (++pos < str.length()) ? str.charAt(pos) : -1;
-            }
-
-            boolean eat(int charToEat) {
-                while (ch == ' ') nextChar();
-                if (ch == charToEat) {
-                    nextChar();
-                    return true;
-                }
-                return false;
-            }
-
-            double parse() {
-                nextChar();
-                double x = parseExpression();
-                if (pos < str.length()) throw new RuntimeException("非法字符: " + (char) ch);
-                return x;
-            }
-
-            double parseExpression() {
-                double x = parseTerm();
-                for (; ; ) {
-                    if (eat('+')) x += parseTerm();
-                    else if (eat('-')) x -= parseTerm();
-                    else return x;
-                }
-            }
-
-            double parseTerm() {
-                double x = parseFactor();
-                for (; ; ) {
-                    if (eat('*')) x *= parseFactor();
-                    else if (eat('/')) {
-                        double divisor = parseFactor();
-                        if (Math.abs(divisor) < 1e-10) throw new ArithmeticException("除数不能为零");
-                        x /= divisor;
-                    }
-                    else return x;
-                }
-            }
-
-            double parseFactor() {
-                if (eat('+')) return parseFactor();
-                if (eat('-')) return -parseFactor();
-                double x;
-                int startPos = this.pos;
-                if (eat('(')) {
-                    x = parseExpression();
-                    eat(')');
-                } else if ((ch >= '0' && ch <= '9') || ch == '.') {
-                    while ((ch >= '0' && ch <= '9') || ch == '.') nextChar();
-                    x = Double.parseDouble(str.substring(startPos, this.pos));
-                } else {
-                    throw new RuntimeException("非法字符: " + (char) ch);
-                }
-                return x;
-            }
-        }.parse();
     }
 }

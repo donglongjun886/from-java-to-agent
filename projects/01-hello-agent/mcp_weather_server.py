@@ -9,9 +9,8 @@ Day 7 Part 2 — MCP 协议实战：将 get_weather + calculate 抽成独立 MCP
   手写:   Agent 代码里写死 TOOLS = [get_weather, calculate]
   MCP:    Agent 连到这个 Server，自动获得 get_weather + calculate
 
-运行方式:
-  python mcp_weather_server.py          # 启动 Server（stdio transport）
-  python mcp_weather_server.py --http   # 或 HTTP+SSE 模式（端口 8000）
+注意：execute_code 由 agent-gateway 的 tool_node 本地执行（沙箱），
+     不在本 MCP Server 中暴露，避免跨项目 import 依赖。
 """
 
 import sys
@@ -26,8 +25,6 @@ import mcp.types as types
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger(__name__)
-
-_sandbox = None
 
 # ============================================================
 # 工具函数 — 和之前完全一样
@@ -66,7 +63,7 @@ def calculate(expression: str) -> str:
         result = _eval(tree)
         return f"{expression} = {result}"
     except (ValueError, SyntaxError):
-        return f"复杂表达式 '{expression}' 请使用 execute_code 工具执行"
+        return f"无法计算表达式: {expression}"
     except Exception as e:
         return f"计算错误: {e}"
 
@@ -103,18 +100,6 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["expression"],
             },
         ),
-        types.Tool(
-            name="execute_code",
-            description="在受限沙箱中执行 Python 代码。仅支持安全内置函数（print, len, range, int, float, str, list, dict, sum, min, max, abs, round, sorted, enumerate, zip, map, filter）",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "code": {"type": "string", "description": "要执行的 Python 代码"},
-                    "timeout": {"type": "integer", "description": "最大执行时间（秒），默认 5", "default": 5},
-                },
-                "required": ["code"],
-            },
-        ),
     ]
 
 # ② 注册工具执行逻辑 — 等价于 tool_calling_demo.py 的 TOOL_MAP
@@ -125,16 +110,6 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
         result = get_weather(arguments["city"])
     elif name == "calculate":
         result = calculate(arguments["expression"])
-    elif name == "execute_code":
-        global _sandbox
-        if _sandbox is None:
-            sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agent-gateway"))
-            from sandbox import SandboxExecutor
-            _sandbox = SandboxExecutor()
-        import json
-        code = arguments.get("code", "")
-        timeout_val = arguments.get("timeout", 5)
-        result = json.dumps(_sandbox.execute(code, timeout_val), ensure_ascii=False)
     else:
         result = f"未知工具: {name}"
 
@@ -177,7 +152,7 @@ async def run_http():
             Mount("/messages/", app=sse.handle_post_message),
         ]
     )
-    print("MCP Server 启动 → http://localhost:8000/sse")
+    print("MCP Server 启动 -> http://localhost:8000/sse")
     print("工具: get_weather, calculate")
     config = uvicorn.Config(web_app, host="0.0.0.0", port=8000, log_level="info")
     await uvicorn.Server(config).serve()

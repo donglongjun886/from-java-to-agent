@@ -20,14 +20,20 @@ public class LangChain4jConfig {
     @Value("${langchain4j.openai.model-name:deepseek-chat}")
     private String modelName;
 
+    @Value("${langchain4j.openai.temperature:0.7}")
+    private double temperature;
+
+    @Value("${langchain4j.openai.max-tokens:2048}")
+    private int maxTokens;
+
     @Bean
     public OpenAiChatModel openAiChatModel() {
         return OpenAiChatModel.builder()
                 .apiKey(apiKey)
                 .baseUrl(baseUrl)
                 .modelName(modelName)
-                .temperature(0.7)
-                .maxTokens(2048)
+                .temperature(temperature)
+                .maxTokens(maxTokens)
                 .build();
     }
 

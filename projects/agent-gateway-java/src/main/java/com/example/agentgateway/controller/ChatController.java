@@ -1,4 +1,4 @@
-package com.example.agentgateway;
+package com.example.agentgateway.controller;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.web.bind.annotation.GetMapping;
