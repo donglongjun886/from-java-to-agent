@@ -17,7 +17,7 @@ import json
 import asyncio
 import unicodedata
 from pathlib import Path
-from typing import TypedDict, Annotated, Literal, Optional
+from typing import TypedDict, Annotated, Literal
 from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
@@ -38,6 +38,7 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 MCP_SERVER_SCRIPT = str(Path(__file__).resolve().parent.parent / "01-hello-agent" / "mcp_weather_server.py")
 
 _mcp_tools: list[dict] = []
+_mcp_initialized = False
 _mcp_session = None
 _mcp_context = None
 _mcp_lock = asyncio.Lock()
@@ -57,13 +58,13 @@ def _tool_spec_to_openai_format(tool) -> dict:
 
 async def init_mcp_tools() -> list[dict]:
     """启动 MCP Server 子进程，获取工具列表，缓存 session"""
-    global _mcp_tools, _mcp_session, _mcp_context
-    if _mcp_tools:
+    global _mcp_tools, _mcp_initialized, _mcp_session, _mcp_context
+    if _mcp_initialized:
         return _mcp_tools
 
     async with _mcp_lock:
         # 双重检查：拿到锁后再次确认，防止并发重复初始化
-        if _mcp_tools:
+        if _mcp_initialized:
             return _mcp_tools
 
         from mcp import ClientSession, StdioServerParameters
@@ -81,6 +82,7 @@ async def init_mcp_tools() -> list[dict]:
 
         result = await _mcp_session.list_tools()
         _mcp_tools = [_tool_spec_to_openai_format(t) for t in result.tools]
+        _mcp_initialized = True
         return _mcp_tools
 
 
@@ -135,7 +137,7 @@ SENSITIVE_PATTERNS = [
     r"github_pat_[a-zA-Z0-9]{22,}",        # GitHub Fine-grained Token
     r"glpat-[a-zA-Z0-9]{20,}",             # GitLab Personal Access Token
     r"AKIA[0-9A-Z]{16}",                   # AWS Access Key
-    r"-----BEGIN\s+(RSA|EC|DSA|PRIVATE)\s+PRIVATE\s+KEY-----",
+    r"-----BEGIN\s+(?:RSA|EC|DSA|PRIVATE)\s+PRIVATE\s+KEY-----\s*[\s\S]*?-----END\s+(?:RSA|EC|DSA|PRIVATE)\s+PRIVATE\s+KEY-----",
 ]
 
 
@@ -214,14 +216,17 @@ def evaluate(question: str, answer: str) -> dict:
         resp = _eval_client.chat.completions.create(
             model="deepseek-chat",
             temperature=0.1,
+            timeout=15,
             messages=[
                 {"role": "system", "content": EVAL_SYSTEM},
                 {"role": "user", "content": f"用户问题: {question}\n\nAI 回答: {answer}"},
             ],
         )
         content = resp.choices[0].message.content.strip()
-        if content.startswith("```"):
-            content = content.split("```json")[-1].split("```")[0].strip()
+        # 稳健去除 markdown 代码围栏（无论有无 language tag）
+        content = re.sub(r'^```(?:json)?\s*\n', '', content)
+        content = re.sub(r'\n```\s*$', '', content)
+        content = content.strip()
         return json.loads(content)
     except Exception:
         return {"overall": {"score": 3, "summary": "评估失败，默认 3 分"}}
@@ -239,7 +244,6 @@ class Stats:
     tool_calls_count: int = 0
     eval_scores: list[int] = field(default_factory=list)
     guard_blocks: int = 0
-    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     @property
     def avg_time_ms(self) -> float:
@@ -249,16 +253,15 @@ class Stats:
     def avg_eval_score(self) -> float:
         return sum(self.eval_scores) / len(self.eval_scores) if self.eval_scores else 0
 
-    async def snapshot(self) -> dict:
-        async with self.lock:
-            return {
-                "total_calls": self.total_calls,
-                "total_tokens": self.total_tokens,
-                "avg_time_ms": round(self.avg_time_ms, 1),
-                "tool_calls_count": self.tool_calls_count,
-                "avg_eval_score": round(self.avg_eval_score, 2),
-                "guard_blocks": self.guard_blocks,
-            }
+    def snapshot(self) -> dict:
+        return {
+            "total_calls": self.total_calls,
+            "total_tokens": self.total_tokens,
+            "avg_time_ms": round(self.avg_time_ms, 1),
+            "tool_calls_count": self.tool_calls_count,
+            "avg_eval_score": round(self.avg_eval_score, 2),
+            "guard_blocks": self.guard_blocks,
+        }
 
 
 stats = Stats()
@@ -270,8 +273,8 @@ stats = Stats()
 
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
-    original_question: Optional[str]
-    temperature: Optional[float]
+    original_question: str | None
+    temperature: float | None
 
 
 SYSTEM_PROMPT = "你是资深的软件工程师助手，用中文回答，简洁准确。"
@@ -368,7 +371,7 @@ async def run_chat(user_message: str, temperature: float = 0.3) -> dict:
     g = guard_input(user_message)
     if not g.passed:
         stats.guard_blocks += 1
-        return {"reply": f"[安全拦截] {g.reason}", "evaluation": None, "time_ms": 0, "stats": await stats.snapshot()}
+        return {"reply": f"[安全拦截] {g.reason}", "evaluation": None, "time_ms": 0, "stats": stats.snapshot()}
 
     initial_state = {
         "messages": [HumanMessage(content=user_message)],
@@ -404,7 +407,7 @@ async def run_chat(user_message: str, temperature: float = 0.3) -> dict:
         "reply": reply,
         "evaluation": eval_info,
         "time_ms": round(elapsed, 1),
-        "stats": await stats.snapshot(),
+        "stats": stats.snapshot(),
     }
 
 
@@ -424,7 +427,7 @@ async def run_chat_stream(user_message: str, temperature: float = 0.3):
         "temperature": temperature,
     }
 
-    # astream_events 按 token 粒度产出
+    # 收集完整回复（先不外发，避免敏感信息泄漏）
     last_reply = ""
     async for event in agent_app.astream_events(initial_state, version="v2"):
         kind = event["event"]
@@ -432,12 +435,12 @@ async def run_chat_stream(user_message: str, temperature: float = 0.3):
             chunk = event["data"]["chunk"]
             if chunk.content:
                 last_reply += chunk.content
-                yield chunk.content
 
-    # 输出脱敏
+    # 输出护栏 + 脱敏（在完整文本上执行后再外发）
     if not guard_output(last_reply).passed:
         last_reply = redact_sensitive(last_reply)
-        yield f"\n[注意] 回复中敏感信息已脱敏"
+
+    yield last_reply
 
     stats.total_calls += 1
     stats.total_time_ms += (time.time() - t0) * 1000

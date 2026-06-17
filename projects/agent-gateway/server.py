@@ -10,7 +10,7 @@ Agent 网关平台 — FastAPI 入口
 
 启动:
   python server.py
-  然后打开 http://localhost:8000/docs 看 Swagger
+  然后打开 http://localhost:9090/docs 看 Swagger
 """
 
 from fastapi import FastAPI
@@ -75,13 +75,13 @@ async def chat(req: ChatRequest) -> ChatResponse:
 async def chat_stream(req: ChatRequest):
     """SSE 流式对话 — 逐 token 推送"""
     async for chunk in run_chat_stream(req.msg, temperature=req.temperature):
-        yield ServerSentEvent(data=chunk, event="token")
+        yield ServerSentEvent(data=chunk, event="reply")
     yield ServerSentEvent(data="[DONE]", event="done")
 
 
 @app.get("/stats")
-async def get_stats():
-    return await stats.snapshot()
+def get_stats():
+    return stats.snapshot()
 
 
 @app.get("/health")
