@@ -1,8 +1,12 @@
 """
-调用熔断器 — 连续失败超过阈值时自动熔断，冷却后恢复
+调用熔断器 — 连续失败超过阈值时自动熔断，冷却后恢复（学习用途）
 
 用于 MCP 工具调用场景：某个工具连续失败 3 次后跳过直接返回降级结果，
 冷却期内不再尝试调用，成功后自动复位。
+
+注意：这是为了理解熔断器原理的手写实现。生产环境应使用专业库：
+  - Python: tenacity — @retry(stop=stop_after_attempt(3), wait=wait_exponential(...))
+  - Java: Resilience4j — @CircuitBreaker + @Retry
 """
 
 import time

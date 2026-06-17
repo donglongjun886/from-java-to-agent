@@ -1,6 +1,11 @@
 """
-代码沙箱 — 轻量级 Python 代码执行器
+代码沙箱 — 轻量级 Python 代码执行器（学习用途）
 使用 subprocess 在受限命名空间中执行用户代码
+
+注意：这是为了理解沙箱原理的手写实现。生产环境应使用专业方案：
+  - E2B (https://e2b.dev) — 一行 sandbox.run_code() 搞定
+  - Docker 容器隔离
+  - Firecracker microVM（AWS 级别隔离）
 """
 
 import json
