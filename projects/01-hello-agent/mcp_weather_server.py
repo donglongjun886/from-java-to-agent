@@ -16,11 +16,15 @@ Day 7 Part 2 — MCP 协议实战：将 get_weather + calculate 抽成独立 MCP
 
 import sys
 import asyncio
+import logging
 
 from mcp.server import Server
 from mcp.server.models import InitializationOptions, ServerCapabilities
 from mcp.server.stdio import stdio_server
 import mcp.types as types
+
+logging.basicConfig(level=logging.INFO, stream=sys.stderr)
+logger = logging.getLogger(__name__)
 
 # ============================================================
 # 工具函数 — 和之前完全一样
@@ -100,6 +104,7 @@ async def run_stdio():
             write_stream,
             InitializationOptions(
                 server_name="weather-tool-server",
+                server_version="1.0.0",
                 capabilities=ServerCapabilities(tools={}),
             ),
         )
@@ -134,7 +139,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--http":
         asyncio.run(run_http())
     else:
-        print("MCP Server 启动 (stdio transport)")
-        print("工具: get_weather, calculate")
-        print("按 Ctrl+C 停止\n")
+        logger.info("MCP Server 启动 (stdio transport)")
+        logger.info("工具: get_weather, calculate")
         asyncio.run(run_stdio())
