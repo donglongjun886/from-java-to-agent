@@ -4,36 +4,28 @@ import com.example.agentgateway.agent.WeatherAgent;
 import com.example.agentgateway.tool.WeatherTools;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@EnableConfigurationProperties(LangChain4jProperties.class)
 public class LangChain4jConfig {
 
-    @Value("${langchain4j.openai.api-key}")
-    private String apiKey;
+    private final LangChain4jProperties props;
 
-    @Value("${langchain4j.openai.base-url}")
-    private String baseUrl;
-
-    @Value("${langchain4j.openai.model-name:deepseek-chat}")
-    private String modelName;
-
-    @Value("${langchain4j.openai.temperature:0.7}")
-    private double temperature;
-
-    @Value("${langchain4j.openai.max-tokens:2048}")
-    private int maxTokens;
+    public LangChain4jConfig(LangChain4jProperties props) {
+        this.props = props;
+    }
 
     @Bean
     public OpenAiChatModel openAiChatModel() {
         return OpenAiChatModel.builder()
-                .apiKey(apiKey)
-                .baseUrl(baseUrl)
-                .modelName(modelName)
-                .temperature(temperature)
-                .maxTokens(maxTokens)
+                .apiKey(props.apiKey())
+                .baseUrl(props.baseUrl())
+                .modelName(props.modelName())
+                .temperature(props.temperature())
+                .maxTokens(props.maxTokens())
                 .build();
     }
 

@@ -15,7 +15,7 @@ public class AgentController {
     }
 
     @GetMapping("/agent/weather")
-    public String weather(@RequestParam(defaultValue = "杭州今天天气怎么样？") String msg) {
-        return weatherAgent.chat(msg);
+    public String weather(@RequestParam(defaultValue = "杭州今天天气怎么样？") String message) {
+        return weatherAgent.chat(message);
     }
 }

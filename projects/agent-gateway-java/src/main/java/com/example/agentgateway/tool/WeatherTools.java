@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class WeatherTools {
 
-    @Tool("查询指定城市的天气信息")
+    @Tool("查询指定城市的天气信息（演示数据）")
     public String getWeather(@P("城市名称") String city) {
         return switch (city) {
             case "杭州" -> "杭州：晴，28°C，湿度65%，风力2级";

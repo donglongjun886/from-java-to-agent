@@ -9,6 +9,12 @@ Day 7 Part 2 — MCP 协议实战：将 get_weather + calculate 抽成独立 MCP
   手写:   Agent 代码里写死 TOOLS = [get_weather, calculate]
   MCP:    Agent 连到这个 Server，自动获得 get_weather + calculate
 
+工具注册方式说明：
+  本文件使用 MCP SDK 的 @app.list_tools() / @app.call_tool() 模式注册工具，
+  而非 langchain_core.tools 的 @tool 装饰器。原因是 MCP Server 是独立进程，
+  通过 MCP 协议（list_tools / call_tool）对外暴露工具，Agent/Client 端通过
+  MCP Client 动态发现和调用。@tool 装饰器适用于 Agent 端的本地工具定义。
+
 注意：execute_code 由 agent-gateway 的 tool_node 本地执行（沙箱），
      不在本 MCP Server 中暴露，避免跨项目 import 依赖。
 """

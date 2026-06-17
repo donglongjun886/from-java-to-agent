@@ -28,8 +28,11 @@ from langchain_core.messages import (
     BaseMessage, HumanMessage, SystemMessage, ToolMessage, AIMessage
 )
 from langchain_openai import ChatOpenAI
-from sandbox import SandboxExecutor
+from sandbox import execute_code_tool
 from circuit_breaker import CircuitBreaker
+
+# 本地工具注册表 — 单一真实来源。新增本地工具只需在此列表追加。
+_LOCAL_TOOLS = [execute_code_tool]
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
@@ -44,7 +47,6 @@ _mcp_initialized = False
 _mcp_session = None
 _mcp_context = None
 _mcp_lock = asyncio.Lock()
-_sandbox = SandboxExecutor()
 
 
 def _tool_spec_to_openai_format(tool) -> dict:
@@ -298,6 +300,8 @@ class Stats:
         }
 
 
+# 注意：模块级 Stats 单例是学习项目的刻意设计取舍，便于 /stats 端点直接访问。
+# 生产环境应改为依赖注入（如通过 FastAPI lifespan 创建并传入 run_chat）。
 stats = Stats()
 
 
@@ -321,38 +325,25 @@ async def llm_node(state: AgentState) -> dict:
         msgs = [SystemMessage(content=SYSTEM_PROMPT)] + msgs
 
     temperature = state.get("temperature", 0.3)
-    tools = await init_mcp_tools()
-    # 确保沙箱工具始终可用（补充 MCP 工具列表，spec 从 SandboxExecutor 获取，保持 SSOT）
-    sandbox_spec = SandboxExecutor.get_tool_spec()
-    if not any(t["function"]["name"] == "execute_code" for t in tools):
-        tools = tools + [sandbox_spec]
+    all_tools = await init_mcp_tools() + _LOCAL_TOOLS
 
     node_model = ChatOpenAI(
         model="deepseek-chat",
         api_key=os.getenv("DEEPSEEK_API_KEY"),
         base_url="https://api.deepseek.com/v1",
         temperature=temperature,
-    ).bind_tools(tools)
+    ).bind_tools(all_tools)
 
     resp = await node_model.ainvoke(msgs)
     stats.total_tokens += resp.usage_metadata.get("total_tokens", 0) if resp.usage_metadata else 0
     return {"messages": [resp]}
 
 
-# 本地工具注册表：优先本地执行，避免 MCP 进程间通信开销
-_local_tools = {
-    "execute_code": lambda args: asyncio.to_thread(
-        _sandbox.execute,
-        args.get("code", ""),
-        args.get("timeout", 5),
-    ),
-}
-
-
 async def tool_node(state: AgentState) -> dict:
-    """工具节点：本地工具优先，未命中则走 MCP Client"""
+    """工具节点：本地 @tool 装饰的工具直接 invoke，其余走 MCP Client"""
     last = state["messages"][-1]
     tool_msgs = []
+    local_tool_map = {t.name: t for t in _LOCAL_TOOLS}
     for tc in last.tool_calls:
         # 工具调用护栏
         g = guard_tool(tc["name"], tc["args"])
@@ -365,9 +356,8 @@ async def tool_node(state: AgentState) -> dict:
             continue
 
         stats.tool_calls_count += 1
-        if tc["name"] in _local_tools:
-            sandbox_res = await _local_tools[tc["name"]](tc["args"])
-            result = json.dumps(sandbox_res, ensure_ascii=False)
+        if tc["name"] in local_tool_map:
+            result = await asyncio.to_thread(local_tool_map[tc["name"]].invoke, tc["args"])
         else:
             result = await execute_tool_mcp(tc["name"], tc["args"])
         tool_msgs.append(ToolMessage(content=result, tool_call_id=tc["id"]))
@@ -467,8 +457,7 @@ async def run_chat(user_message: str, temperature: float = 0.3) -> dict:
 async def run_chat_stream(user_message: str, temperature: float = 0.3):
     """流式调用：先缓冲完整回复，经安全护栏检测脱敏后再 yield 给客户端。
 
-    流式 tokens 在内部先累积到 last_reply 字符串，通过 guard_output 检查后
-    一次性 yield，避免敏感信息在检测前就外发到 SSE 通道。
+    注意：出于安全护栏要求，先缓冲完整回复、脱敏后再一次性推送，非 token 级真流式。
     """
     t0 = time.time()
 

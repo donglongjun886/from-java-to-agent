@@ -3,10 +3,13 @@
 使用 subprocess 在受限命名空间中执行用户代码
 """
 
+import json
 import subprocess
 import sys
 import tempfile
 import os
+
+from langchain_core.tools import tool
 
 
 class SandboxExecutor:
@@ -21,28 +24,6 @@ class SandboxExecutor:
         "list", "dict", "sum", "min", "max", "abs",
         "round", "sorted", "enumerate", "zip", "map", "filter",
     }
-
-    @staticmethod
-    def get_tool_spec() -> dict:
-        """返回 execute_code 工具的 OpenAI function-calling 规范（SSOT）。
-
-        其他模块（如 agent_graph）从本方法获取工具定义，不再自行硬编码。
-        """
-        return {
-            "type": "function",
-            "function": {
-                "name": "execute_code",
-                "description": "在受限沙箱中执行 Python 代码。仅支持安全内置函数（print, len, range, int, float, str, list, dict, sum, min, max, abs, round, sorted, enumerate, zip, map, filter）",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "code": {"type": "string", "description": "要执行的 Python 代码"},
-                        "timeout": {"type": "integer", "description": "最大执行时间（秒），默认 5", "default": 5},
-                    },
-                    "required": ["code"],
-                },
-            },
-        }
 
     def _validate_code(self, code: str) -> dict | None:
         """验证代码安全性，返回 None 表示通过，否则返回错误 dict"""
@@ -120,3 +101,13 @@ _globals = {{k: getattr(builtins, k) for k in _safe}}
 _globals["__builtins__"] = _globals
 exec({code!r}, _globals)
 '''
+
+
+_sandbox = SandboxExecutor()
+
+
+@tool
+def execute_code_tool(code: str, timeout: int = 5) -> str:
+    """在受限沙箱中执行 Python 代码。仅支持安全内置函数（print, len, range, int, float, str, list, dict, sum, min, max, abs, round, sorted, enumerate, zip, map, filter）"""
+    result = _sandbox.execute(code, timeout)
+    return json.dumps(result, ensure_ascii=False)
