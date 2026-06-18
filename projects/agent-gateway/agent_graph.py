@@ -21,7 +21,6 @@ from typing import TypedDict, Annotated, Literal
 from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
-from openai import OpenAI
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langchain_core.messages import (
@@ -226,46 +225,8 @@ def guard_output(text: str) -> GuardResult:
     return GuardResult(passed=True)
 
 
-# ============================================================
-# 评估层 — 真实 LLM-as-a-Judge
-# ============================================================
-
-EVAL_SYSTEM = """你是一个严格的技术评审专家。对 AI 助手的回答按四维度打分 (1-5):
-
-- accuracy: 事实是否正确
-- relevance: 是否直接回答了用户问题
-- completeness: 是否覆盖了关键要点
-- format_quality: 格式是否清晰易读
-
-严格输出 JSON（不要额外文字）:
-{"accuracy":{"score":int,"reason":"..."},"relevance":{"score":int,"reason":"..."},"completeness":{"score":int,"reason":"..."},"format_quality":{"score":int,"reason":"..."},"overall":{"score":int,"summary":"..."}}"""
-
-_eval_client = OpenAI(
-    api_key=os.getenv("DEEPSEEK_API_KEY"),
-    base_url="https://api.deepseek.com/v1",
-)
-
-
-def evaluate(question: str, answer: str) -> dict:
-    """LLM-as-a-Judge 四维评估（用原始 OpenAI SDK，不走 LangChain 回调，避免污染流式输出）"""
-    try:
-        resp = _eval_client.chat.completions.create(
-            model="deepseek-chat",
-            temperature=0.1,
-            timeout=15,
-            messages=[
-                {"role": "system", "content": EVAL_SYSTEM},
-                {"role": "user", "content": f"用户问题: {question}\n\nAI 回答: {answer}"},
-            ],
-        )
-        content = resp.choices[0].message.content.strip()
-        # 稳健去除 markdown 代码围栏（无论有无 language tag）
-        content = re.sub(r'^```(?:json)?\s*\n', '', content)
-        content = re.sub(r'\n```\s*$', '', content)
-        content = content.strip()
-        return json.loads(content)
-    except Exception:
-        return {"overall": {"score": 3, "summary": "评估失败，默认 3 分"}}
+# 评估层已独立为 evaluator.py
+from evaluator import evaluate
 
 
 # ============================================================
