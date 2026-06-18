@@ -4,8 +4,6 @@ import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.agent.tool.P;
 import org.springframework.stereotype.Component;
 
-import javax.script.ScriptEngineManager;
-
 @Component
 public class WeatherTools {
 
@@ -19,16 +17,5 @@ public class WeatherTools {
             case "成都" -> "成都：晴，29°C，湿度55%，风力1级";
             default -> city + "：暂无天气数据，请确认城市名称";
         };
-    }
-
-    @Tool("执行数学计算（支持加减乘除和括号）")
-    public double calculate(@P("数学表达式，例如 1+2*3") String expression) {
-        try {
-            return ((Number) new ScriptEngineManager()
-                    .getEngineByName("js")
-                    .eval(expression)).doubleValue();
-        } catch (Exception e) {
-            throw new RuntimeException("计算失败: " + expression + " — " + e.getMessage());
-        }
     }
 }

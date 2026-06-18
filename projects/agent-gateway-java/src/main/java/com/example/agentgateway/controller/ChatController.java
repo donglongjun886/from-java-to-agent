@@ -15,7 +15,7 @@ public class ChatController {
     }
 
     @GetMapping("/chat")
-    public String chat(@RequestParam String msg) {
+    public String chat(@RequestParam(defaultValue = "你好") String msg) {
         return chatClient.prompt()
                 .user(msg)
                 .call()

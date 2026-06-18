@@ -73,3 +73,98 @@ Tool Calling、Planning、Memory、ReAct、Checkpoint、Human-in-the-Loop
 ### 延伸关键词
 
 ReAct Pattern、Tool Choice（auto/none/required）、Parallel Tool Calling、Tool Spec Schema、幻觉调用（Hallucinated Tool Call）
+
+---
+
+## 题 3：MCP 协议是什么？为什么不用代码里直接写工具？
+
+### 参考答案
+
+**MCP（Model Context Protocol）** 是 Agent 调用外部工具的标准协议。Server 声明能力（list_tools），Client 动态发现并调用（call_tool），两者通过 stdio 或 HTTP+SSE 通信，与语言无关。
+
+**为什么不在代码里直接写工具？**
+
+| 直接写 | 通过 MCP |
+|--------|---------|
+| 工具和 Agent 代码耦合，加/改工具要改 Agent | Agent 代码不变，运行时动态发现新工具 |
+| 一种语言（Python 的工具 JS 的 Agent 调不了） | 跨语言：Python Server → Java Client 无缝 |
+| 工具代码跟 Agent 跑在同一个进程里 | 工具独立进程，隔离执行，崩了不影响 Agent |
+
+**核心认知**：Function Calling 定义了「模型怎么表达要调工具」，MCP 定义了「工具怎么暴露给模型」。两者互补——Function Calling 是语言，MCP 是运输管道。
+
+### 考点分析
+
+| 层级 | 考察什么 |
+|------|---------|
+| 知道"是什么" | MCP = 工具标准协议，Server/Client 架构 |
+| 知道"为什么需要" | 解耦、跨语言、独立进程、统一标准 |
+| 知道"怎么实现的" | list_tools 声明能力 → call_tool 执行分发 → stdio/HTTP 传输 |
+
+### Java 视角加分
+
+> "MCP 本质上就是 SPI 机制——定义标准接口，实现方按协议注册，调用方运行时动态发现。不用改一行 Agent 代码，换个 MCP Server 就能换一套工具。我实际做过跨语言场景：Python MCP Server 暴露工具，Java LangChain4j MCP Client 通过 stdio 子进程连上去，工具定义和 Agent 代码完全解耦。"
+
+### 延伸关键词
+
+SPI 机制、跨语言、动态发现、Server/Client 架构、stdio/HTTP+SSE、工具隔离
+
+---
+
+## 题 4：LangGraph 的 StateGraph 解决什么问题？和手写 if-else 有什么区别？
+
+### 参考答案
+
+**StateGraph** 是把 Agent 的决策流程建模为有向图：节点（Node）做具体逻辑，边（Edge）定义流转方向，State 自动在节点间传递和合并。
+
+**和手写 if-else 的三个核心区别：**
+
+**① State 自动合并（而非手动拼接）**
+
+手写 if-else：每步产出要自己 `messages.append()`，历史拼接逻辑散落在各处。
+
+```python
+# 手写：每步都要手动管理历史
+messages.append(HumanMessage(content=input))
+response = llm.invoke(messages)
+messages.append(response)
+if response.tool_calls:
+    result = execute_tool(response)
+    messages.append(result)  # 容易漏、容易乱
+    messages.append(llm.invoke(messages))
+```
+
+StateGraph：每个节点只输出自己的部分，框架通过 reducer（如 `operator.add`）自动合并到 State。
+
+```python
+# LangGraph：每个节点只关心自己的产出
+def chatbot(state): return {"messages": [llm.invoke(state["messages"])]}
+def tool_node(state): return {"messages": [execute_tool(state["messages"][-1])]}
+```
+
+**② 条件路由和节点隔离（而非代码耦合）**
+
+if-else 的所有分支写在一个函数里，加一个分支要通读全部代码。StateGraph 的节点是独立函数，加节点改路由不改已有代码：
+
+```python
+graph.add_conditional_edges("agent", router, {"tools": "tool_node", "end": END})
+```
+
+**③ 内建 Checkpoint（断点续传）**
+
+if-else 要实现"某步失败后从断点重试"，需要自己写状态快照和恢复逻辑。LangGraph 的 Checkpointer 一行 `graph.compile(checkpointer=...)` 就解决了。
+
+### 考点分析
+
+| 层级 | 考察什么 |
+|------|---------|
+| 知道"是什么" | 有向图：Node=处理逻辑，Edge=流转规则，State=共享数据 |
+| 知道"和 if-else 的差异" | State 自动合并、节点隔离、内建 Checkpoint |
+| 知道"怎么选" | 简单流程 if-else 够用，多工具/多轮/条件复杂时用 LangGraph |
+
+### Java 视角加分
+
+> "LangGraph 本质就是 Flowable 的工作流引擎——你把业务流程定义成节点和连线，引擎负责调度节点、传递上下文、持久化快照。只是 Flowable 用于审批流，LangGraph 用于 LLM 决策流。用 if-else 写 Agent 相当于用 main 方法写微服务编排——能跑，但没法维护。"
+
+### 延伸关键词
+
+StateGraph、Node/Edge、Conditional Edge、Checkpointer、Reducer、operator.add
