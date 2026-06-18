@@ -84,7 +84,7 @@
 - [ ] `notes/code-sandbox.md` — **代码沙箱笔记（E2B/Docker 安全执行）**
 - [ ] `journal/week-02/retrospective.md` — 第二周复盘
 - [ ] 🌙 `projects/agent-gateway-java/` — LangChain4j 版 Agent 网关（对照实现）
-- [ ] 🌙 `notes/面试题-Agent基础.md` — Agent 基础类面经题（15 道）
+- [ ] 🌙 `notes/面试题-Agent基础.md` — Agent 基础技术面经（15 道）
 
 ### 关键资源
 - [LangGraph 文档](https://docs.langchain.com/oss/python/langgraph/quickstart)
@@ -128,7 +128,7 @@
 - [ ] `notes/agent-auth-rbac.md` — **Agent Auth RBAC 笔记（新增）**
 - [ ] `journal/week-03/retrospective.md` — 第三周复盘
 - [ ] 🌙 `projects/smart-report-agent-java/` — LangChain4j + PGVector 对照实现
-- [ ] 🌙 `notes/面试题-RAG+上下文.md` — RAG + 上下文工程面经题（15 道）
+- [ ] 🌙 `notes/面试题-RAG+上下文.md` — RAG + 上下文工程技术面经（15 道）
 
 ### 关键资源
 - [LlamaIndex 文档](https://docs.llamaindex.ai/)（核心：Data Ingestion / Indexing / Querying 三阶段）
@@ -147,7 +147,7 @@
 - Harness 工程深度：六层架构 + Context Reset + 外部验证
 - SDD（Spec-Driven Development）+ Agent 安全
 - **完成项目B 多 Agent 扩展**：Planner→Generator→Evaluator 三 Agent 架构
-- 全面复盘：技能矩阵 + 求职策略 + 面试模拟
+- 全面复盘：技能矩阵 + 技术深度专题 + 知识体系梳理
 
 ### 每日计划
 
@@ -156,8 +156,8 @@
 | **Day16 (06/26 五)** | 多 Agent 模式 + Harness 六层 + 框架对比 | Manager-Worker、流水线、对等协作、Human-in-the-Loop、**LangGraph vs OpenAI Agents SDK vs CrewAI 概览**、Harness 六层 | 多 Agent ≈ 微服务编排；选框架要看生产透明度和可控性 |
 | **Day17 (06/29 一)** | 生产化 + SDD + 项目B 架构设计 | Agent 安全（注入防御/权限/沙箱）、SDD（Spec-Driven Development）、Token 成本优化、项目B 多 Agent 架构设计 | SDD = 先写 Spec 再生成代码 |
 | **Day18 (06/30 二)** | 项目B：多 Agent 实现 | Planner→Generator→Evaluator 三 Agent 架构 + Context Reset 策略 + 完整 Harness 六要素 | 外部验证 > 自我评估；Evaluator 必须是独立 Agent |
-| **Day19 (07/01 三)** | 项目B：压测 + 文档 | 高并发压测（QPS/P99/成本）、故障注入测试、架构图/时序图/状态机流转图、README | 面试官要看量化数据，不是 Demo |
-| **Day20 (07/02 四)** | 全面复盘 | 四周学习总结、技能矩阵评估、求职策略、后续学习路线、完整模拟面试 | — |
+| **Day19 (07/01 三)** | 项目B：压测 + 文档 | 高并发压测（QPS/P99/成本）、故障注入测试、架构图/时序图/状态机流转图、README | 量化数据是工程能力的证明，不是 Demo |
+| **Day20 (07/02 四)** | 全面复盘 | 四周学习总结、技能矩阵评估、后续学习路线、知识体系梳理 | — |
 
 ### 本周产出
 - [ ] `projects/smart-report-agent/` — **多 Agent 协同研报系统**（Planner→Generator→Evaluator + Harness + 压测 + 故障注入）
@@ -166,15 +166,13 @@
 - [ ] `notes/harness-engineering-deep.md` — Harness 工程深度笔记
 - [ ] `journal/week-04/retrospective.md` — 第四周复盘
 - [ ] `journal/final-summary.md` — 月度总结 + 技能矩阵 + 后续计划
-- [ ] 🌙 `notes/面试题-系统设计.md` — 系统设计类面经题（15 道）
 - [ ] 🌙 2 个项目技术复盘文档（架构图 + 设计决策 + 踩坑）
-- [ ] 🌙 完整模拟面试 4 轮（自评 + 改进记录）
 
 ### 关键资源
 - [LangGraph Multi-Agent 教程](https://langchain-ai.github.io/langgraph/tutorials/multi_agent/multi-agent-collaboration/)
 - [CrewAI 文档](https://docs.crewai.com/)
 - [Langfuse 可观测性](https://langfuse.com/)
-- [Harness Engineering 面经汇总](https://notes.kamacoder.com/interview/llm/harness_interview.html)
+- [Harness Engineering 技术参考](https://notes.kamacoder.com/interview/llm/harness_interview.html)
 - [Anthropic Managed Agents Architecture](https://dev.to/luhuidev/anthropic-managed-agents-2026-agent-harness-architecture-for-production-ai-agents-3899)
 
 ---
@@ -188,22 +186,22 @@
 2. **编码（2-3h）**：动手写代码，小步快跑
 3. **输出（30min）**：写笔记，记录今日收获与问题
 
-**晚段（30-45min）**：Java 栈 AI 能力对比 + 面试准备
+**晚段（30-45min）**：Java 栈 AI 能力对比 + 技术深度专题
 
-**行业视野（每周 1 次，10-15min）**：扫 GitHub trending 的 Agent/LLM 相关项目 README，不精读但能说出「解决什么问题 + 核心架构」。目标：面试被问「最近看了什么项目」时能展开 3 分钟。
+**行业视野（每周 1 次，10-15min）**：扫 GitHub trending 的 Agent/LLM 相关项目 README，不精读但能说出「解决什么问题 + 核心架构」。
 
-**开源贡献（Week 3-4，碎片时间）**：给 Agent 生态项目（LangGraph / FastMCP / LlamaIndex / ChromaDB）提 PR。从 good first issue 或 doc fix 入手，目标是简历上有一个 merged PR。
+**开源贡献（Week 3-4，碎片时间）**：给 Agent 生态项目（LangGraph / FastMCP / LlamaIndex / ChromaDB）提 PR。从 good first issue 或 doc fix 入手，参与开源社区共建。
 
-**技术输出（Week 2 起，碎片时间）**：把学到的东西写成技术博客/公众号文章。一篇高质量技术文章的效果远超外包项目——面试官搜到你的文章本身就是信任背书。选题方向：Java 工程师视角的 Agent 开发、Spring AI 实战踩坑、MCP 协议入门等。
+**技术输出（Week 2 起，碎片时间）**：把学到的东西写成技术博客/公众号文章。以教促学，通过输出倒逼知识内化。选题方向：Java 工程师视角的 Agent 开发、Spring AI 实战踩坑、MCP 协议入门等。
 
 ### 晚段专项计划
 
 | 周次 | 晚段重点 | 具体内容 | 每日耗时 |
 |------|---------|---------|---------|
 | **第1周** | Spring AI 对照实现 | Spring Boot + 通义千问 API 调用、Spring AI 的 ChatClient 核心用法 | 30min |
-| **第2周** | LangChain4j Tool/MCP 对照 + 面经 | LangChain4j Tool 定义、MCP Client、面经 2 道/天 | 45min |
-| **第3周** | LangChain4j RAG 对照 + 面经 | PGVector + Embedding + RAG 核心链路、面经 3 道/天 | 45min |
-| **第4周** | 模拟面试 + 系统设计 | 每天 1 轮 30min 问答 + 自评、系统设计题专项 | 45min |
+| **第2周** | LangChain4j Tool/MCP 对照 + 技术深度专题 | LangChain4j Tool 定义、MCP Client、技术专题 2 个/天 | 45min |
+| **第3周** | LangChain4j RAG 对照 + 技术深度专题 | PGVector + Embedding + RAG 核心链路、技术专题 3 个/天 | 45min |
+| **第4周** | 技术深度专题 + 系统设计 | 每天 1 轮技术自测 + 知识梳理、系统设计题专项 | 45min |
 
 ### Java → Python 速通策略
 - 核心差异：动态类型、列表推导式、async/await
@@ -247,7 +245,6 @@
 | 资源 | 链接 | 说明 |
 |------|------|------|
 | Modern Agent Harness Blueprint | https://gist.github.com/amazingvince/52158d00fb8b3ba1b8476bc62bb562e3 | Harness 工程全景图 |
-| Harness Engineering 面经 | https://notes.kamacoder.com/interview/llm/harness_interview.html | 大厂 Harness 面试题汇总 |
 | Anthropic Managed Agents | https://dev.to/luhuidev/anthropic-managed-agents-2026-agent-harness-architecture-for-production-ai-agents-3899 | Anthropic 官方 Harness 架构 |
 
 ### 课程
