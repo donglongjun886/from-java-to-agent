@@ -131,7 +131,7 @@ async def execute_tool_mcp(name: str, args: dict) -> str:
 
     # ③ 全部重试失败 → 记录并降级
     await _circuit_breaker.record_failure(name)
-    return f"[降级] 工具 {name} 暂时不可用，请稍后重试"
+    return f"[降级] 工具 {name} 暂时不可用（{last_error}）"
 
 
 async def close_mcp():
@@ -197,7 +197,7 @@ def guard_tool(tool_name: str, args: dict) -> GuardResult:
     arg_str = json.dumps(args, ensure_ascii=False)
     for category, patterns in DANGEROUS_PATTERNS.items():
         for pattern in patterns:
-            if re.search(pattern, arg_str, re.IGNORECASE):
+            if re.search(pattern, arg_str, re.IGNORECASE) or re.search(pattern, tool_name, re.IGNORECASE):
                 return GuardResult(
                     passed=False,
                     reason=f"危险 {category} 操作: {pattern}",

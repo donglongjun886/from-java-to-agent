@@ -26,6 +26,9 @@ Thumbs.db
 # Jupyter
 .ipynb_checkpoints/
 
+# MCP config (contains local paths)
+.mcp.json
+
 # Project specific
 *.db
 *.sqlite3
