@@ -27,6 +27,7 @@
 - ✅ **Day 9（06/17）**：项目A 核心实现（安全护栏/MCP集成/SSE流式/容错熔断/沙箱）+ Java晚段补课（LangChain4j @Tool+AiServices）
 - ✅ **Day 10（06/18）**：压测报告（Locust）+ 架构图（6张Mermaid）+ 周复盘 + LangChain4j MCP Client + 面经8/15
 - ✅ **Week 2 完整收官**：Agent 网关从 Demo 到工程（安全/可观测/压测/架构图）
+- ✅ **Day 11（06/22）**：IR 基础理论 + Embedding Explorer + LlamaIndex 首个 RAG Pipeline（ChromaDB）
 - 详细见 `journal/week-01/`、`journal/week-02/` 和 `notes/`
 
 ## 学习路径
