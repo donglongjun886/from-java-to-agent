@@ -16,8 +16,8 @@
 |------|------|------|----------|
 | **第1周** | 06/05 - 06/11 | Python 速通 + LLM 基础 + 评估入门 | **项目A 启动**：Agent 网关平台（Hello Agent → Tool Calling → MCP） |
 | **第2周** | 06/12 - 06/18 | LangGraph 编排 + MCP + FastAPI 服务化 + Agent 安全 | **项目A 完成**：带 MCP Server + FastAPI + 安全网关的多工具 Agent |
-| **第3周** | 06/19 - 06/25 | Enterprise RAG + IR 基础 + 检索权限 + 上下文工程 | **项目B 启动**：企业级 RAG 研报 Agent（多租户+异构数据+权限感知检索） |
-| **第4周** | 06/26 - 07/02 | Agentic Retrieval + Multi-Agent + Harness + 复盘 | **项目B 完成**：Agentic Retrieval 多 Agent 系统（四 Agent + 静态 vs Agentic 对比） |
+| **第3周** | 06/22 - 06/26 | Enterprise RAG + IR 基础 + 检索权限 + 上下文工程 | **项目B 启动**：企业级 RAG 研报 Agent（多租户+异构数据+权限感知检索） |
+| **第4周** | 06/29 - 07/03 | Agentic Retrieval + Multi-Agent + Harness + 复盘 | **项目B 完成**：Agentic Retrieval 多 Agent 系统（四 Agent + 静态 vs Agentic 对比） |
 
 ---
 
@@ -98,7 +98,7 @@
 
 ---
 
-## 第3周：Enterprise RAG + 检索基础 + 上下文工程（06/19 - 06/25）
+## 第3周：Enterprise RAG + 检索基础 + 上下文工程（06/22 - 06/26）
 
 > 🎯 **本周对标：Zoom Enterprise RAG 资深研发工程师 JD**
 > 核心思路：不只学「怎么搭 RAG」，而是学「怎么搭企业级检索系统」— 多租户隔离、权限感知、异构数据、混合检索、排序评估，每项都要能讲出架构设计理由。
@@ -118,11 +118,11 @@
 
 | 天 | 主题 | 内容 | 核心认知 |
 |----|------|------|----------|
-| **Day11 (06/19 五)** | **IR 基础** + Embedding + LlamaIndex | ① IR 核心概念速通（倒排索引→TF-IDF→BM25→稠密检索→混合检索，**30min 理论**）② 文本向量化/相似度计算 ③ LlamaIndex 数据加载/索引/检索 ④ ChromaDB + 文档切分策略 | 倒排索引 ≈ MySQL B+Tree 范围查询；Embedding ≈ Lucene 语义层；LlamaIndex ≈ Spring Data JPA（统一数据层抽象） |
-| **Day12 (06/22 一)** | **Enterprise RAG 架构** + 知识图谱认知 | ① 完整 RAG Pipeline（BM25 + 稠密向量 + Reranker 三级管道）② GraphRAG 架构认知（实体抽取→关系构建→图查询，能画架构图即可）③ 渐进式披露/上下文重置/分片 ④ **结构化+非结构化混合查询设计**（Text-to-SQL + 向量检索 → 结果融合） | IR 的本质是「召回+排序」两个阶段；RAG 的本质是「检索」和「生成」的接口契约；知识图谱解决的是「关系型问题」而非「相似性问题」 |
-| **Day13 (06/23 二)** | **权限感知检索** + 评估体系 | ① **检索级权限控制**（文档 ACL 过滤 → 索引分区 → 租户隔离，不只是 Tool 级 RBAC）② RAGAS 评估（Faithfulness/Context Recall/Answer Relevance）③ **排序质量评估**（NDCG/MRR，理解为什么 RAGAS 不够）④ Langfuse 全链路追踪 | 权限过滤必须在检索阶段完成，不能等 LLM 生成后校验（安全+成本）；NDCG 测排序质量，RAGAS 测生成质量 — 两个维度不可互相替代 |
-| **Day14 (06/24 三)** | 项目B（上）— Enterprise RAG 框架搭建 | **异构数据源摄入**（PDF 文档 + 数据库查询 + API JSON）→ 统一索引管道 → **多租户索引隔离**（tenant_id 元数据过滤）→ **文档级 ACL** → 带权限的问答 + 引用溯源 | 企业 RAG ≠ Demo RAG，核心差异在：异构数据 / 权限隔离 / 可审计的引用链路 |
-| **Day15 (06/25 四)** | 项目B（下）+ 周复盘 | RAGAS + NDCG 双维评估跑分、上下文工程策略落地、**压测+成本报告**（含租户隔离的 QPS 影响分析）、整理笔记 | 面试能讲的 RAG 项目 = 架构图 + 评估数据 + 踩坑记录 + 设计权衡 |
+| **Day11 (06/22 一)** | **IR 基础** + Embedding + LlamaIndex | ① IR 核心概念速通（倒排索引→TF-IDF→BM25→稠密检索→混合检索，**30min 理论**）② 文本向量化/相似度计算 ③ LlamaIndex 数据加载/索引/检索 ④ ChromaDB + 文档切分策略 | 倒排索引 ≈ MySQL B+Tree 范围查询；Embedding ≈ Lucene 语义层；LlamaIndex ≈ Spring Data JPA（统一数据层抽象） |
+| **Day12 (06/23 二)** | **Enterprise RAG 架构** + 知识图谱认知 | ① 完整 RAG Pipeline（BM25 + 稠密向量 + Reranker 三级管道）② GraphRAG 架构认知（实体抽取→关系构建→图查询，能画架构图即可）③ 渐进式披露/上下文重置/分片 ④ **结构化+非结构化混合查询设计**（Text-to-SQL + 向量检索 → 结果融合） | IR 的本质是「召回+排序」两个阶段；RAG 的本质是「检索」和「生成」的接口契约；知识图谱解决的是「关系型问题」而非「相似性问题」 |
+| **Day13 (06/24 三)** | **权限感知检索** + 评估体系 | ① **检索级权限控制**（文档 ACL 过滤 → 索引分区 → 租户隔离，不只是 Tool 级 RBAC）② RAGAS 评估（Faithfulness/Context Recall/Answer Relevance）③ **排序质量评估**（NDCG/MRR，理解为什么 RAGAS 不够）④ Langfuse 全链路追踪 | 权限过滤必须在检索阶段完成，不能等 LLM 生成后校验（安全+成本）；NDCG 测排序质量，RAGAS 测生成质量 — 两个维度不可互相替代 |
+| **Day14 (06/25 四)** | 项目B（上）— Enterprise RAG 框架搭建 | **异构数据源摄入**（PDF 文档 + 数据库查询 + API JSON）→ 统一索引管道 → **多租户索引隔离**（tenant_id 元数据过滤）→ **文档级 ACL** → 带权限的问答 + 引用溯源 | 企业 RAG ≠ Demo RAG，核心差异在：异构数据 / 权限隔离 / 可审计的引用链路 |
+| **Day15 (06/26 五)** | 项目B（下）+ 周复盘 | RAGAS + NDCG 双维评估跑分、上下文工程策略落地、**压测+成本报告**（含租户隔离的 QPS 影响分析）、整理笔记 | 面试能讲的 RAG 项目 = 架构图 + 评估数据 + 踩坑记录 + 设计权衡 |
 
 ### 本周产出
 - [ ] `projects/smart-report-agent/` — **Enterprise RAG 研报 Agent**（混合检索+Rerank+多租户隔离+文档 ACL+异构数据源+双维评估+压测报告）
@@ -148,7 +148,7 @@
 
 ---
 
-## 第4周：Agentic Retrieval + Multi-Agent + Harness 深度 + 综合复盘（06/26 - 07/02）
+## 第4周：Agentic Retrieval + Multi-Agent + Harness 深度 + 综合复盘（06/29 - 07/03）
 
 > 🎯 **本周对标：Zoom「多步骤 AI Agent 检索编排」+「RAG 管道设计与优化」**
 > 核心思路：Week 3 做的是「静态 RAG 管道」，Week 4 要做「Agent 驱动的动态检索」— Agent 自主规划检索步骤、选择工具、合并结果、迭代查询。这是 Zoom JD 里「multi-step, tool-using AI agents」的落地形态。
@@ -166,11 +166,11 @@
 
 | 天 | 主题 | 内容 | 核心认知 |
 |----|------|------|----------|
-| **Day16 (06/26 五)** | **Agentic Retrieval** + 多 Agent 模式 + Harness 六层 | ① Agent 驱动的检索决策（Tool-using Retriever：向量搜索 / BM25 / SQL / Graph 四个 Tool，Agent 自主选择）② Manager-Worker、流水线、对等协作 ③ Human-in-the-Loop ④ LangGraph vs OpenAI Agents SDK vs CrewAI ⑤ Harness 六层 | Agentic Retrieval ≠ RAG Pipeline；前者是 Agent 决策检索策略，后者是固定流程；静态管道够用时不引入 Agent，Agent 的价值在「不确定性和多步推理」 |
-| **Day17 (06/29 一)** | 生产化 + 检索评估 + 项目B 架构设计 | ① **检索质量评估**（Hit Rate / MRR / NDCG — 和 Day13 的排序评估衔接）② Agent 安全（注入防御/权限/沙箱）③ SDD（Spec-Driven Development）④ Token 成本优化 ⑤ 项目B 四 Agent 架构设计 | 检索评估与生成评估分离：先保证召回质量，再优化生成质量；Agent 做检索的优势不是「更准」而是「更灵活」 |
-| **Day18 (06/30 二)** | 项目B：多 Agent 实现 | **Retrieval Planner**（分解查询→选择工具）→ **Multi-Source Retriever**（向量+BM25+SQL+Graph 四 Tool）→ Generator → Evaluator 四 Agent 架构 + Context Reset 策略 + 完整 Harness 六要素 | 外部验证 > 自我评估；Evaluator 必须是独立 Agent；多源检索的难点不是「搜得多」而是「去重+排序+溯源」 |
-| **Day19 (07/01 三)** | 项目B：压测 + 文档 | 高并发压测（QPS/P99/成本）、**检索质量对比（静态 RAG vs Agentic Retrieval）**、故障注入测试（Tool 超时/LLM 幻觉/上下文截断）、架构图/时序图/状态机流转图、README | 量化数据是工程能力的证明，不是 Demo；面试时要能说「为什么这个场景用 Agentic 比静态好」 |
-| **Day20 (07/02 四)** | 全面复盘 | 四周学习总结、技能矩阵评估、**对标 Zoom JD 自评**、后续学习路线、知识体系梳理 | — |
+| **Day16 (06/29 一)** | **Agentic Retrieval** + 多 Agent 模式 + Harness 六层 | ① Agent 驱动的检索决策（Tool-using Retriever：向量搜索 / BM25 / SQL / Graph 四个 Tool，Agent 自主选择）② Manager-Worker、流水线、对等协作 ③ Human-in-the-Loop ④ LangGraph vs OpenAI Agents SDK vs CrewAI ⑤ Harness 六层 | Agentic Retrieval ≠ RAG Pipeline；前者是 Agent 决策检索策略，后者是固定流程；静态管道够用时不引入 Agent，Agent 的价值在「不确定性和多步推理」 |
+| **Day17 (06/30 二)** | 生产化 + 检索评估 + 项目B 架构设计 | ① **检索质量评估**（Hit Rate / MRR / NDCG — 和 Day13 的排序评估衔接）② Agent 安全（注入防御/权限/沙箱）③ SDD（Spec-Driven Development）④ Token 成本优化 ⑤ 项目B 四 Agent 架构设计 | 检索评估与生成评估分离：先保证召回质量，再优化生成质量；Agent 做检索的优势不是「更准」而是「更灵活」 |
+| **Day18 (07/01 三)** | 项目B：多 Agent 实现 | **Retrieval Planner**（分解查询→选择工具）→ **Multi-Source Retriever**（向量+BM25+SQL+Graph 四 Tool）→ Generator → Evaluator 四 Agent 架构 + Context Reset 策略 + 完整 Harness 六要素 | 外部验证 > 自我评估；Evaluator 必须是独立 Agent；多源检索的难点不是「搜得多」而是「去重+排序+溯源」 |
+| **Day19 (07/02 四)** | 项目B：压测 + 文档 | 高并发压测（QPS/P99/成本）、**检索质量对比（静态 RAG vs Agentic Retrieval）**、故障注入测试（Tool 超时/LLM 幻觉/上下文截断）、架构图/时序图/状态机流转图、README | 量化数据是工程能力的证明，不是 Demo；面试时要能说「为什么这个场景用 Agentic 比静态好」 |
+| **Day20 (07/03 五)** | 全面复盘 | 四周学习总结、技能矩阵评估、**对标 Zoom JD 自评**、后续学习路线、知识体系梳理 | — |
 
 ### 本周产出
 - [ ] `projects/smart-report-agent/` — **Agentic Retrieval 多 Agent 研报系统**（Retrieval Planner → Multi-Source Retriever → Generator → Evaluator + Harness + 压测 + 静态 vs Agentic 对比报告）

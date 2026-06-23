@@ -37,8 +37,8 @@ v5 计划采用 **2 条主线项目** 跨越 4 周，基于真实面经做了 4 
 |------|------|------|----------|
 | **第1周** | 06/05 - 06/11 | Python 速通 + LLM 基础 + 评估入门 | **项目A 启动**：Agent 网关平台（Hello Agent → Tool Calling → MCP） |
 | **第2周** | 06/12 - 06/18 | LangGraph 编排 + MCP/A2A + 代码沙箱 | **项目A 完成**：带 MCP Server + LangGraph 的多工具 Agent 网关 |
-| **第3周** | 06/19 - 06/25 | RAG + 上下文工程 + Auth RBAC | **项目B 启动**：智能研报 Agent（RAG + 评估体系） |
-| **第4周** | 06/26 - 07/02 | Multi-Agent + Harness 深度 + 综合复盘 | **项目B 完成**：多 Agent 协同研报系统（沙箱 + 权限） |
+| **第3周** | 06/22 - 06/26 | RAG + 上下文工程 + Auth RBAC | **项目B 启动**：智能研报 Agent（RAG + 评估体系） |
+| **第4周** | 06/29 - 07/03 | Multi-Agent + Harness 深度 + 综合复盘 | **项目B 完成**：多 Agent 协同研报系统（沙箱 + 权限） |
 
 详细计划见 [learning-plan.md](./learning-plan.md)。
 
