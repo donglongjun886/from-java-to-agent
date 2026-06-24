@@ -28,6 +28,7 @@
 - ✅ **Day 10（06/18）**：压测报告（Locust）+ 架构图（6张Mermaid）+ 周复盘 + LangChain4j MCP Client + 面经8/15
 - ✅ **Week 2 完整收官**：Agent 网关从 Demo 到工程（安全/可观测/压测/架构图）
 - ✅ **Day 11（06/22）**：IR 基础理论 + Embedding Explorer + LlamaIndex 首个 RAG Pipeline（ChromaDB）
+- ✅ **Day 12（06/23）**：三级管道/知识图谱/上下文工程/混合查询（全理论日）
 - 详细见 `journal/week-01/`、`journal/week-02/` 和 `notes/`
 
 ## 学习路径
