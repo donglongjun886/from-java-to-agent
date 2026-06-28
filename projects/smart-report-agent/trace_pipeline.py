@@ -10,10 +10,13 @@
    低于 0.7 自动告警。离线 RAGAS 定基线, 在线做漂移检测, 避免 embedding 退化才发现。"
 """
 
-import os, sys, time
-from pathlib import Path
+import os
+import sys
+import time
 from unittest.mock import MagicMock
 
+# 已知 workaround: langchain_community.vertexai 在非 GCP 环境导入会报错，
+# 提前 mock 避免 LlamaIndex 导入链触发异常，不影响功能。
 sys.modules["langchain_community.chat_models.vertexai"] = MagicMock()
 sys.modules["langchain_community.chat_models.vertexai"].ChatVertexAI = MagicMock()
 
@@ -26,7 +29,7 @@ from llama_index.llms.openai_like import OpenAILike
 from llama_index.vector_stores.chroma import ChromaVectorStore
 import chromadb
 
-# ═══════════════ Langfuse 初始化（优雅降级） ═══════════════
+# ═══════════════ Langfuse 初始化（优雅降级，延迟 auth_check） ═══════════════
 
 LANGFUSE_AVAILABLE = False
 _langfuse = None
@@ -37,11 +40,8 @@ try:
         secret_key=os.getenv("LANGFUSE_SECRET_KEY", ""),
         host=os.getenv("LANGFUSE_HOST", "http://localhost:3000"),
     )
-    if _langfuse.auth_check():
-        LANGFUSE_AVAILABLE = True
-        print("[Langfuse] Connected.")
-    else:
-        print("[Langfuse] Not configured — console only.")
+    # auth_check() 推迟到 TracedRAGPipeline.__init__ 中执行，
+    # 避免模块导入时触发网络请求。
 except Exception as e:
     print(f"[Langfuse] Unavailable ({e}) — console only.")
 
@@ -51,6 +51,7 @@ api_key = os.getenv("DEEPSEEK_API_KEY")
 if not api_key:
     raise RuntimeError("DEEPSEEK_API_KEY not configured")
 
+# Demo 模式：直接设置全局 Settings，生产环境应通过参数显式传入。
 Settings.llm = OpenAILike(
     model="deepseek-chat", api_key=api_key, api_base="https://api.deepseek.com",
     temperature=0.1, is_chat_model=True, max_retries=3,
@@ -98,8 +99,24 @@ class TracedRAGPipeline:
     """
 
     def __init__(self, idx):
-        self.query_engine = idx.as_query_engine(similarity_top_k=3, text_qa_template=PromptTemplate(
-            "Context:\n{context_str}\n\nAnswer using context. Include specific numbers.\nQuery: {query_str}\nAnswer: "))
+        # 将 Langfuse auth_check 推迟到首次实例化时执行，避免模块导入触发网络请求
+        global LANGFUSE_AVAILABLE
+        if _langfuse is not None and not LANGFUSE_AVAILABLE:
+            try:
+                if _langfuse.auth_check():
+                    LANGFUSE_AVAILABLE = True
+                    print("[Langfuse] Connected.")
+                else:
+                    print("[Langfuse] Not configured — console only.")
+            except Exception as e:
+                print(f"[Langfuse] auth check failed ({e}) — console only.")
+
+        # 生产环境需要根据 user_id 解析租户+角色权限，构建 ChromaDB MetadataFilters
+        # 注入 access_level 和 role 过滤条件，实现 ACL 级检索隔离。
+        # TODO: 接入 JWT Session → 解析 tenant/role → 注入 MetadataFilters
+        self.retriever = idx.as_retriever(similarity_top_k=3)
+        self.qa_template = PromptTemplate(
+            "Context:\n{context_str}\n\nAnswer using context. Include specific numbers.\nQuery: {query_str}\nAnswer: ")
 
     def query(self, question, user_id="alice"):
         trace = None
@@ -107,35 +124,47 @@ class TracedRAGPipeline:
             trace = _langfuse.trace(name="smart-report-query", user_id=user_id,
                                      metadata={"question": question})
 
-        # Retrieval span
+        # ── Retrieval span（独立 timing） ──
         span = trace.span(name="acl-retrieval", metadata={"top_k": 3}) if trace else _NoopSpan()
         with span:
             t0 = time.time()
-            response = self.query_engine.query(question)
-            elapsed = round((time.time() - t0) * 1000, 1)
+            nodes = self.retriever.retrieve(question)
+            retrieval_ms = round((time.time() - t0) * 1000, 1)
             docs = []
-            for node in response.source_nodes:
+            for node in nodes:
                 meta = node.metadata
                 docs.append({"doc_id": meta.get("doc_id"), "source_type": meta.get("source_type"),
                              "tenant": meta.get("tenant"), "snippet": node.text[:100]})
-            span.update(metadata={"latency_ms": elapsed}, output={"count": len(docs), "docs": docs})
+            span.update(metadata={"latency_ms": retrieval_ms}, output={"count": len(docs), "docs": docs})
 
-        # Generation span
+        # ── Generation span（独立 timing） ──
+        context_str = "\n\n".join(node.text for node in nodes)
+        prompt = self.qa_template.format(context_str=context_str, query_str=question)
         if trace:
             gen = trace.generation(name="llm-answer", model="deepseek-chat",
-                input={"question": question, "context_count": len(docs)},
-                output={"answer": str(response)})
+                input={"question": question, "context_count": len(docs)})
+        t0 = time.time()
+        try:
+            answer = str(Settings.llm.complete(prompt))
+        except Exception as e:
+            import logging
+            logging.error(f"LLM generation failed: {e}")
+            answer = "(抱歉，系统暂时无法处理您的请求，请稍后重试。)"
+        generation_ms = round((time.time() - t0) * 1000, 1)
+        if trace:
+            gen.update(output={"answer": answer, "latency_ms": generation_ms})
             gen.end()
             trace.score(name="retrieved_count", value=len(docs))
-            trace.update(output={"answer": str(response)})
+            trace.update(output={"answer": answer})
 
-        return {"answer": str(response), "retrieved_docs": docs,
-                "latency_ms": elapsed, "traced": LANGFUSE_AVAILABLE}
+        return {"answer": answer, "retrieved_docs": docs,
+                "retrieval_ms": retrieval_ms, "generation_ms": generation_ms,
+                "traced": LANGFUSE_AVAILABLE}
 
 
 class _NoopSpan:
     def __enter__(self): return self
-    def __exit__(self, *args): pass
+    def __exit__(self, exc_type, exc_val, exc_tb): pass
     def update(self, **kwargs): pass
 
 # ═══════════════ Demo ═══════════════
@@ -155,7 +184,7 @@ if __name__ == "__main__":
     for uid, q in queries:
         print(f"\n{'─'*70}\nUser={uid} | Query: {q}")
         r = pipeline.query(q, user_id=uid)
-        print(f"Latency: {r['latency_ms']}ms | Docs: {len(r['retrieved_docs'])} | Traced: {r['traced']}")
+        print(f"Retrieval: {r['retrieval_ms']}ms | Generation: {r['generation_ms']}ms | Docs: {len(r['retrieved_docs'])} | Traced: {r['traced']}")
         print(f"Answer: {r['answer'][:150]}...")
         for d in r["retrieved_docs"]:
             print(f"  → [{d['source_type']}:{d['doc_id']}] {d['snippet'][:70]}...")
@@ -174,6 +203,9 @@ if __name__ == "__main__":
   生产流程: 查询 → Langfuse trace → 10%采样异步 RAGAS → score 回写
            → Dashboard 趋势图 → Faithfulness 掉到 0.6 → PagerDuty 告警
 """)
+    # 确保所有 trace/spans 写入 Langfuse，避免数据丢失
+    if _langfuse is not None:
+        _langfuse.flush()
     if not LANGFUSE_AVAILABLE:
         print("""启动本地 Langfuse:
   docker run -d --name langfuse -p 3000:3000 -p 3030:3030 langfuse/langfuse

@@ -5,10 +5,12 @@
        既安全（防 prompt 注入泄露）又省 token（只送有权文档给 LLM）。"
 """
 
-import os, sys
-from pathlib import Path
+import os
+import sys
 from unittest.mock import MagicMock
 
+# 已知 workaround: langchain_community.vertexai 在非 GCP 环境导入会报错，
+# 提前 mock 避免 LlamaIndex 导入链触发异常，不影响功能。
 sys.modules["langchain_community.chat_models.vertexai"] = MagicMock()
 sys.modules["langchain_community.chat_models.vertexai"].ChatVertexAI = MagicMock()
 
@@ -27,6 +29,7 @@ api_key = os.getenv("DEEPSEEK_API_KEY")
 if not api_key:
     raise RuntimeError("DEEPSEEK_API_KEY not configured")
 
+# Demo 模式：直接设置全局 Settings，生产环境应通过参数显式传入。
 Settings.llm = OpenAILike(
     model="deepseek-chat", api_key=api_key, api_base="https://api.deepseek.com",
     temperature=0.1, is_chat_model=True, max_retries=3,
@@ -53,9 +56,13 @@ def resolve_session(user_id):
 
 # ═══════════════ ACL Filter（继承 Day13 acl_retrieval.py 权限模型） ═══════════════
 
+ALLOWED_ROLES = {"intern", "engineer", "manager"}
+
 def build_acl_where(tenant, role):
     """ChromaDB where clause: tenant 精确匹配 + role_XXX 布尔过滤。
     LlamaIndex MetadataFilters 在 $and + 布尔组合上兼容性不稳定，直接调 ChromaDB。"""
+    if role and role not in ALLOWED_ROLES:
+        raise ValueError(f"Invalid role: {role}")
     return {"$and": [{"tenant": tenant}, {f"role_{role}": True}]}
 
 # ═══════════════ Document Specs（12 篇，元组驱动精简定义） ═══════════════
@@ -101,10 +108,10 @@ def _build_index():
         })
         for t, tn, al, ri, re, rm, st, did, ts in _DOCS
     ]
-    chroma_client = chromadb.Client()
+    chroma_client = chromadb.EphemeralClient()
     try:
         chroma_client.delete_collection("smart_report_query")
-    except (ValueError, chromadb.errors.NotFoundError):
+    except ValueError:
         pass
     collection = chroma_client.get_or_create_collection("smart_report_query")
     vector_store = ChromaVectorStore(chroma_collection=collection)
@@ -120,6 +127,9 @@ def acl_query(collection, query_text, user_id, top_k=5):
     where_clause = build_acl_where(session["tenant"], session["role"])
 
     query_embedding = Settings.embed_model.get_query_embedding(query_text)
+    # 直接调 ChromaDB collection.query() 而非 LlamaIndex 抽象层，
+    # 原因：需要 ChromaDB where clause 做布尔字段过滤（$and + role_XXX），
+    # LlamaIndex MetadataFilters 对 $and + 布尔值组合存在兼容性问题。
     results = collection.query(
         query_embeddings=[query_embedding], n_results=top_k,
         where=where_clause, include=["documents", "metadatas", "distances"],
@@ -150,7 +160,9 @@ def acl_query(collection, query_text, user_id, top_k=5):
     try:
         answer = str(Settings.llm.complete(prompt))
     except Exception as e:
-        answer = f"(LLM generation failed: {e})"
+        import logging
+        logging.error(f"LLM generation failed: {e}")
+        answer = "(抱歉，系统暂时无法处理您的请求，请稍后重试。)"
 
     return {"answer": answer, "citations": citations,
             "retrieved_count": len(docs),

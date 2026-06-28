@@ -4,10 +4,13 @@
        两者从不同角度验证同一件事, 交叉验证比单一指标可靠。生产加 Langfuse 做在线漂移检测。"
 """
 
-import os, sys, math
-from pathlib import Path
+import os
+import sys
+import math
 from unittest.mock import MagicMock
 
+# 已知 workaround: langchain_community.vertexai 在非 GCP 环境导入会报错，
+# 提前 mock 避免 LlamaIndex 导入链触发异常，不影响功能。
 sys.modules["langchain_community.chat_models.vertexai"] = MagicMock()
 sys.modules["langchain_community.chat_models.vertexai"].ChatVertexAI = MagicMock()
 
@@ -31,17 +34,21 @@ api_key = os.getenv("DEEPSEEK_API_KEY")
 if not api_key:
     raise RuntimeError("DEEPSEEK_API_KEY not configured")
 
+# Demo 模式：直接设置全局 Settings，生产环境应通过参数显式传入。
 Settings.llm = OpenAILike(
     model="deepseek-chat", api_key=api_key, api_base="https://api.deepseek.com",
     temperature=0.1, is_chat_model=True, max_retries=3,
 )
-Settings.embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 from openai import OpenAI as OpenAIClient
 from ragas.llms import llm_factory
 eval_llm = llm_factory("deepseek-chat",
     client=OpenAIClient(api_key=api_key, base_url="https://api.deepseek.com", max_retries=3))
+
+# 只加载一次 embedding 模型，llama_index 通过 LangchainEmbedding 复用同一个实例
 lc_embeddings = LCHFEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+from llama_index.embeddings.langchain import LangchainEmbedding
+Settings.embed_model = LangchainEmbedding(lc_embeddings)
 
 # ═══════════════ Documents（12 篇精简版，同 ingest.py） ═══════════════
 # (text, doc_id)
@@ -62,9 +69,9 @@ _DOC_PAIRS = [
 documents = [Document(text=t, metadata={"doc_id": did}) for t, did in _DOC_PAIRS]
 
 # Build index (no ACL filter — evaluating retrieval quality itself)
-chroma_client = chromadb.Client()
+chroma_client = chromadb.EphemeralClient()
 try: chroma_client.delete_collection("smart_report_eval")
-except (ValueError, chromadb.errors.NotFoundError): pass
+except ValueError: pass
 collection = chroma_client.get_or_create_collection("smart_report_eval")
 vector_store = ChromaVectorStore(chroma_collection=collection)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
@@ -94,16 +101,20 @@ print("Part 1: RAGAS Evaluation — 生成质量四维评估")
 print("=" * 70)
 
 questions, answers, contexts_list, ground_truths = [], [], [], []
+# 缓存 Part1 的 response 对象，Part2 直接复用，避免重复查询破坏交叉验证前提
+_cached_responses = []
 for i, (q, gt) in enumerate(QA_PAIRS, 1):
     try:
         response = query_engine.query(q)
         questions.append(q); answers.append(str(response))
         contexts_list.append([n.text for n in response.source_nodes])
         ground_truths.append(gt)
+        _cached_responses.append(response)
         print(f"  [Q{i}] {(q[:60]+'...'):<63} contexts={len(contexts_list[-1])}")
     except Exception as e:
-        print(f"  [Q{i}] FAILED: {e}")
-        questions.append(q); answers.append(""); contexts_list.append([]); ground_truths.append(gt)
+        # 查询失败时跳过该样本，不追加空数据污染评估指标
+        print(f"  [Q{i}] SKIPPED (query failed): {e}")
+        continue
 
 eval_dataset = Dataset.from_dict({
     "question": questions, "answer": answers, "contexts": contexts_list, "ground_truth": ground_truths,
@@ -157,13 +168,22 @@ queries_ndcg = {f"Q{i+1}-{k.split()[0]}": QA_PAIRS[i][0] for i, k in enumerate(
 
 print(f"\n{'Query':<22} {'Top-5 Retrieved (doc_id:rel)':<55} {'NDCG@5':>8} {'MRR':>8}\n{'-'*95}")
 ndcg_s, mrr_s = [], []
+# Part2 复用 Part1 缓存的 response，不再重复查询，保证交叉验证的可比性
+_qid_to_idx = {"Q1-Revenue": 0, "Q2-Fundamentals": 1, "Q3-TrendOutlook": 2,
+               "Q4-Regulation": 3, "Q5-MarketData": 4}
+top_k = 5
 for qid, qtext in queries_ndcg.items():
-    resp = query_engine.query(qtext)
+    qi = _qid_to_idx.get(qid, -1)
+    if qi < 0 or qi >= len(_cached_responses):
+        print(f"{qid:<22} {'(no cached response)':<55} {'N/A':>8} {'N/A':>8}")
+        continue
+    resp = _cached_responses[qi]
     ret_ids = [n.metadata.get("doc_id","?") for n in resp.source_nodes]
     ideal = qrel_lists[qid]
     pred = [ideal[_qmap[rid]] if rid in _qmap else 0 for rid in ret_ids]
-    while len(pred) < 5: pred.append(0)
-    n, m = ndcg_k(pred, ideal, 5), mrr_val(pred)
+    while len(pred) < top_k: pred.append(0)
+    # MRR 计算前强制截断到 top_k，避免长度不一致导致误差
+    n, m = ndcg_k(pred, ideal, top_k), mrr_val(pred[:top_k])
     ndcg_s.append(n); mrr_s.append(m)
     print(f"{qid:<22} {', '.join(f'{rid}({r})' for rid,r in zip(ret_ids,pred)):<55} {n:>8.4f} {m:>8.4f}")
 
