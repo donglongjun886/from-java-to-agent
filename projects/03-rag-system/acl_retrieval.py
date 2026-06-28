@@ -69,6 +69,10 @@ documents = [
 
 # ── Build index ──
 chroma_client = chromadb.Client()
+try:
+    chroma_client.delete_collection("acl_demo")
+except (ValueError, chromadb.errors.NotFoundError):
+    pass
 collection = chroma_client.get_or_create_collection("acl_demo")
 vector_store = ChromaVectorStore(chroma_collection=collection)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
