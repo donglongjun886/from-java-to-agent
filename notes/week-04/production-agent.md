@@ -28,7 +28,7 @@ Agent 上生产不是「调个 API 加个重试」那么简单。核心矛盾在
 ```
 第1层: 输入校验 ─── 长度限制 + 敏感关键词检测
 第2层: Unicode NFKC归一化 ── 防同形异义字符绕过（俄文a≠英文a）
-第3层: 角色隔离 ──── 用户/系统指令在API层分字段传递（大多数LLM API原生支持）
+第3层: 角色隔离 ──── 用户/系统指令在API层分字段传递（OpenAI/Anthropic 等 Chat API 在协议层原生分离 system/user role——但需确认所用模型是否真正隔离，部分国产模型将二者拼接为单一 prompt）
 第4层: 输出校验 ─── 即使注入成功，输出敏感信息也会被拦截
 ```
 
@@ -148,7 +148,7 @@ class TokenBudget:
 
 ```python
 class SemanticCache:
-    def get(self, query: str, threshold: float = 0.92) -> Optional[str]:
+    def get(self, query: str, threshold: float = 0.88) -> Optional[str]:  # 可调参数，需按实际业务数据标定
         query_vec = embed(query)
         nearest = vector_db.search(query_vec, top_k=1)
         if nearest and nearest.similarity >= threshold:

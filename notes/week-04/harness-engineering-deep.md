@@ -62,7 +62,7 @@ with open("/workspace/batch_1.json", "w") as f:
     json.dump(results, f)
 next_prompt = """
 结果存入 /workspace/batch_1.json (128条)。
-请用 read_file 逐批分析，总结共性后回复。"""
+请用 read_file 逐批分析，总结共性后回复。"""  # read_file 示例来自 Claude Code 等 AI 编程工具的文件读取能力，非通用 API
 # prompt 仅 ~50 token，数据量可无限扩展
 ```
 
@@ -91,8 +91,8 @@ Java 映射：
 | 记忆类型 | 存储介质 | 生命周期 | 检索方式 | Java 类比 |
 |---------|---------|---------|---------|----------|
 | **短期窗口** | Context Window | 单次会话 | 自然语言理解 | 线程栈/局部变量 |
-| **长期语义** | 向量数据库 | 跨会话持久化 | 语义相似度 | Redis（语义化版） |
-| **情节摘要** | SQL/NoSQL | 跨会话持久化 | 时间索引 | Kafka 事件溯源 |
+| **长期语义** | 向量数据库 (如 ChromaDB/Pinecone) | 跨会话持久化 | 语义相似度 | Redis（语义化版） |
+| **情节摘要** | SQL/NoSQL | 跨会话持久化 | 时间索引 | 归档日志 / 操作审计摘要 |
 | **事实 KV** | Redis/DynamoDB | 跨会话 | 精确键匹配 | Redis Hash |
 
 ```
@@ -194,7 +194,7 @@ for attempt in range(3):
 
 | 维度 | 全塞 Prompt | 文件系统分流 |
 |------|-----------|------------|
-| **Token 成本** | 每轮重传全部数据，O(n) 线性累积 | 按需读取，O(1) 按需计费 |
+| **Token 成本** | 每轮重传全部数据，O(n) 线性累积 | 按需读取，O(k) — k 为本轮实际读取量 |
 | **注意力稀释** | Lost-in-the-Middle：中间信息被忽略概率 40-60% | 每次只读聚焦内容，注意力密度恒定 |
 | **可复用性** | 无法跨会话/跨 Agent 共享 | 文件持久化，多 Agent 共享读写 |
 | **可审计性** | 埋在长 prompt 中，难以提取 | 独立文件，可直接查看、git diff |
@@ -209,7 +209,7 @@ for attempt in range(3):
 |-----------|-------------|---------|
 | **文件系统层** | 数据库 + 对象存储 OSS | 状态持久化载体，CRUD 基本单元 |
 | **工具系统层** | SPI + Feign/Dubbo + Hystrix | 接口定义 → 服务发现 → 调用 → 熔断 |
-| **记忆层** | Redis + ES + MySQL + Kafka | 四种记忆对应四种存储引擎 |
+| **记忆层** | Redis + 向量数据库 (如 ChromaDB/Pinecone) + MySQL + Kafka | 四种记忆对应四种存储引擎 |
 | **沙箱层** | SecurityManager + Docker + seccomp | JVM 沙箱是进程级，Agent 沙箱系统级 |
 | **上下文管理层** | JVM 堆管理 (-Xmx, GC) | 有限空间 → 分配策略 → 回收机制 |
 | **反馈环路** | CI/CD Pipeline | 自动化质量门禁 + 持续改进 |
@@ -233,9 +233,9 @@ for attempt in range(3):
 
 | 趋势 | 对 Harness 的影响 |
 |------|-----------------|
-| **MCP 成为标准**（OpenAI/Google 跟进） | 工具系统从「自定义注册」→「MCP Server 发现」 |
+| **MCP 成为标准**（OpenAI 跟进） | 工具系统从「自定义注册」→「MCP Server 发现」 |
 | **窗口军备竞赛降温**（边际收益递减，注意力稀释成瓶颈） | 上下文管理重要性 > 窗口大小 |
-| **Agent-to-Agent 协议**（Google A2A、Anthropic Agent Protocol） | Harness 需支持 Agent 间通信（服务网格） |
+| **Agent-to-Agent 协议**（Google A2A、Anthropic Agent Protocol） | Agent 间通信走 Google A2A 协议；Harness 需支持 Agent 间通信（服务网格） |
 | **记忆即服务**（Mem0、LangMem 等中间件） | 记忆层抽象为独立服务，Redis-as-a-Service |
 | **可观测性刚需**（Langfuse、Arize APM 成熟） | 反馈环路从「加分项」→「上线前置条件」 |
 

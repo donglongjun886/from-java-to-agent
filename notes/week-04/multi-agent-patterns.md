@@ -44,7 +44,7 @@ Worker1    Worker2   Worker3    (可并行)
 
 **Java 类比**：微服务编排（Orchestrator Pattern）。BFF 服务收请求 → 并行调多个下游 → 聚合返回。
 
-**关键决策**：Manager 通过 prompt 拆解子任务粒度；Worker 间无依赖可并行（`CompletableFuture.allOf`）；前一个 Worker 输出裁剪后注入下一个 Worker prompt。
+**关键决策**：Manager 通过 prompt 拆解子任务粒度。无依赖场景：Worker 间可并行调用，类比 `CompletableFuture.allOf`。有依赖场景：前一个 Worker 输出裁剪后作为下一个 Worker 的输入，类比 Spring Cloud Gateway Filter Chain。
 
 ### 2.2 Pipeline（流水线模式）
 
@@ -153,7 +153,7 @@ _search   _search    _query     _query
 | Tool | 解决场景 | 底层技术 | 典型 Query |
 |------|---------|---------|-----------|
 | `vector_search` | 「类似意思」的同义/模糊匹配 | Embedding + 余弦相似度 | 「如何优化数据库性能」 |
-| `bm25_search` | 精确术语/数字/API名/错误码 | 稀疏向量 + 倒排索引 | 「NPE 在 commit abc123 的修复」 |
+| `bm25_search` | 精确术语/数字/API名/错误码 | 关键词频率 + 倒排索引 | 「NPE 在 commit abc123 的修复」 |
 | `sql_query` | 聚合统计/时序/条件过滤 | Text-to-SQL | 「上月 DAU>10万的日期」 |
 | `graph_query` | 多跳关系/实体关联 | KG (Cypher/SPARQL) | 「张三的直属领导是谁」 |
 
