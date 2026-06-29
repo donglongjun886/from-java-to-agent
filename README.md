@@ -29,7 +29,12 @@
 - ✅ **Week 2 完整收官**：Agent 网关从 Demo 到工程（安全/可观测/压测/架构图）
 - ✅ **Day 11（06/22）**：IR 基础理论 + Embedding Explorer + LlamaIndex 首个 RAG Pipeline（ChromaDB）
 - ✅ **Day 12（06/23）**：三级管道/知识图谱/上下文工程/混合查询（全理论日）
-- 详细见 `journal/week-01/`、`journal/week-02/` 和 `notes/`
+- ✅ **Day 13（06/28）**：4 Part全线收工 — ACL权限感知检索 + RAGAS四维评估 + NDCG/MRR排序 + Langfuse追踪
+- ✅ **项目B（06/28）**：smart-report-agent/ — 企业级RAG研报系统（6文件/3轮review清零/对标Zoom JD）
+- ✅ **Week 3 收工**：19文件~3700行/3轮review/6篇笔记写审修全闭环
+- ✅ **Day 16（06/29）**：Agentic Retrieval + 多Agent协作（3种模式）+ 四Agent协同系统 + 3篇Week4笔记写审修
+- 🔄 **Day 17（进行中）**：检索评估对比（静态RAG vs Agentic Retrieval）
+- 详细见 `journal/week-01/` ~ `journal/week-03/` 和 `notes/week-01/` ~ `notes/week-04/`
 
 ## 学习路径
 
@@ -50,11 +55,22 @@ v5 计划采用 **2 条主线项目** 跨越 4 周，基于真实面经做了 4 
 from-java-to-agent/
 ├── learning-plan.md       # 四周学习路径与里程碑
 ├── journal/               # 学习日志与每周复盘
-├── notes/                 # 学习笔记（按主题）
+│   ├── week-01/           # Day 1-5 + 周复盘
+│   ├── week-02/           # Day 6-10 + 周复盘
+│   └── week-03/           # Day 11-15 + 周复盘
+├── notes/                 # 学习笔记（按周组织）
+│   ├── week-01/           # Python速通 + LLM基础 (2篇)
+│   ├── week-02/           # LangGraph + MCP + Agent安全 (5篇)
+│   ├── week-03/           # Enterprise RAG + IR + 评估 (6篇)
+│   └── week-04/           # Multi-Agent + Harness + 生产化 (3篇)
 ├── resources/             # 资料索引
 └── projects/
     ├── agent-gateway/             # 项目A：Agent 网关平台（Week 1-2）
     ├── smart-report-agent/        # 项目B：智能研报 Agent（Week 3-4）
+    │   ├── agentic_retrieval.py   #   Agent自主路由检索
+    │   ├── multi_agent_collab.py  #   多Agent协作三模式
+    │   ├── four_agent_system.py   #   四Agent协同系统
+    │   └── evaluate.py            #   RAGAS+NDCG双维评估
     ├── agent-gateway-java/        # 晚段对照：Spring AI / LangChain4j
     └── smart-report-agent-java/   # 晚段对照：LangChain4j + PGVector
 ```
