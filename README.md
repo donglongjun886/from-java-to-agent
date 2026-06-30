@@ -33,7 +33,8 @@
 - ✅ **项目B（06/28）**：smart-report-agent/ — 企业级RAG研报系统（6文件/3轮review清零/对标Zoom JD）
 - ✅ **Week 3 收工**：19文件~3700行/3轮review/6篇笔记写审修全闭环
 - ✅ **Day 16（06/29）**：Agentic Retrieval + 多Agent协作（3种模式）+ 四Agent协同系统 + 3篇Week4笔记写审修
-- 🔄 **Day 17（进行中）**：检索评估对比（静态RAG vs Agentic Retrieval）
+- ✅ **Day 17（06/30）**：检索评估对比 — 静态RAG vs Agentic（P@3/MRR/NDCG）+ 诚实结论
+- 详细见 `journal/week-01/` ~ `journal/week-03/` 和 `notes/week-01/` ~ `notes/week-04/`
 - 详细见 `journal/week-01/` ~ `journal/week-03/` 和 `notes/week-01/` ~ `notes/week-04/`
 
 ## 学习路径
