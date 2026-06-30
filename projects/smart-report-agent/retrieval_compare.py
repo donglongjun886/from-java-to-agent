@@ -88,31 +88,31 @@ def static_retrieve(query: str) -> dict[str, str]:
     与 Agentic 的差别: 问到"研发部技术投入和预算效率"，Agentic 会拆成2个子任务
     （查财务+查技术），静态版只能命中一个规则分支。"""
     results: dict[str, str] = {}
-    q = query
+    query_text = query
     # 试着从问题里找出部门名（按字符串包含匹配）
-    dept = next((d for d in ORG_HIERARCHY if d in q), None)
+    department = next((d for d in ORG_HIERARCHY if d in query_text), None)
 
     # ── 以下四个 if 块就是"规则"：哪个关键词命中，就调哪个数据源 ──
 
     # 规则A: 问题含预算/财务/支出 → 查财务表
-    if any(k in q for k in ["预算", "财务", "支出", "利用率", "执行", "云支出"]):
-        results["finance"] = retrieve_finance(dept or "")
+    if any(kw in query_text for kw in ["预算", "财务", "支出", "利用率", "执行", "云支出"]):
+        results["finance"] = retrieve_finance(department or "")
 
     # 规则B: 问题含技术/架构/平台 → 查技术文档（向量检索）
-    if any(k in q for k in ["技术", "架构", "平台", "K8s", "GPU", "AI", "云"]):
-        results["vector"] = retrieve_vector(q)
+    if any(kw in query_text for kw in ["技术", "架构", "平台", "K8s", "GPU", "AI", "云"]):
+        results["vector"] = retrieve_vector(query_text)
 
     # 规则C: 问题含人数/主管/团队 → 查组织架构
-    if any(k in q for k in ["多少人", "主管", "团队", "规模", "人数"]):
-        if dept:
-            results["org"] = retrieve_org(dept)
+    if any(kw in query_text for kw in ["多少人", "主管", "团队", "规模", "人数"]):
+        if department:
+            results["org"] = retrieve_org(department)
 
     # 规则D: 问题要对比/排名 → 调跨部门对比
-    if any(k in q for k in ["对比", "比较", "哪个部门", "各部门"]):
+    if any(kw in query_text for kw in ["对比", "比较", "哪个部门", "各部门"]):
         results["compare"] = retrieve_compare()
 
     # 一道规则都没命中 → 兜底走向量检索（随便给点东西，避免空手）
-    return results or {"vector": retrieve_vector(q)}
+    return results or {"vector": retrieve_vector(query_text)}
 
 
 # ═══ 评估指标: P@K / MRR / NDCG@K ═══
@@ -152,24 +152,24 @@ def evaluate_retrieval(
     )
     top_k = scored[:k]         # 只看前 K 个（k=3）
 
-    # ① P@K: 前K个中有几个是相关的（g>0就算相关），除以K
+    # ① P@K: 前K个中有几个是相关的（grade>0就算相关），除以K
     # 如果4个数据源都相关, P@3 = 3/3 = 1.0; 只有1个相关, P@3 = 1/3 = 0.33
-    prec_k = sum(1 for _, g in top_k if g > 0) / len(top_k) if top_k else 0.0
+    prec_k = sum(1 for _, grade in top_k if grade > 0) / len(top_k) if top_k else 0.0
 
     # ② MRR: 第一个相关文档排在第几位？1/rank
     # 排在位置1 → 1/1=1.0; 排在位置3 → 1/3=0.33; 一个都不相关 → 0
     mrr = 0.0
-    for rank, (_, g) in enumerate(scored, 1):  # rank 从 1 开始
-        if g > 0:                               # 第一个 g>0 的位置就是命中位
+    for rank, (_, grade) in enumerate(scored, 1):  # rank 从 1 开始
+        if grade > 0:                                # 第一个 grade>0 的位置就是命中位
             mrr = 1.0 / rank
             break
 
     # ③ NDCG@K: 实际排序质量 ÷ 理想排序质量
     # 实际 DCG 用 top_k 的真实顺序算; 理想 DCG 用所有文档按分数降序排列算
-    dcg = _dcg([g for _, g in top_k])                         # 实际值
-    ideal = sorted([g for _, g in scored], reverse=True)[:k]  # 理想值: 所有相关的排最前
-    idcg = _dcg(ideal)                                         # 理想上限
-    ndcg_k = dcg / idcg if idcg > 0 else 0.0                  # 归一化到 [0, 1]
+    dcg = _dcg([grade for _, grade in top_k])                      # 实际值
+    ideal = sorted([grade for _, grade in scored], reverse=True)[:k] # 理想值: 所有相关的排最前
+    idcg = _dcg(ideal)                                              # 理想上限
+    ndcg_k = dcg / idcg if idcg > 0 else 0.0                       # 归一化到 [0, 1]
 
     return {"prec3": prec_k, "mrr": mrr, "ndcg3": ndcg_k}
 
@@ -189,47 +189,47 @@ def run_evaluation() -> None:
     print(sub_fmt.format(_pad("", 30), "P@3   MRR   NDCG", "P@3   MRR   NDCG"))
     print("-" * 86)
 
-    agg = {"static": {"prec3": [], "mrr": [], "ndcg3": []},
-           "agentic": {"prec3": [], "mrr": [], "ndcg3": []}}
+    all_scores = {"static": {"prec3": [], "mrr": [], "ndcg3": []},
+                  "agentic": {"prec3": [], "mrr": [], "ndcg3": []}}
 
     for qa in QA_PAIRS:
-        q = qa["question"]                      # 问题文本
-        kw = qa["ground_truth_keywords"]        # 人工标注的预期关键词
+        question = qa["question"]
+        expected_keywords = qa["ground_truth_keywords"]
 
         # ── 静态 RAG: 规则路由 → 检索 → 打分 ──
-        sr = static_retrieve(q)                 # {"finance": "...", "vector": "..."}
-        sm = evaluate_retrieval(sr, kw)         # {"prec3": 1.0, "mrr": 1.0, "ndcg3": 0.95}
+        static_results = static_retrieve(question)
+        static_metrics = evaluate_retrieval(static_results, expected_keywords)
 
         # ── Agentic: Planner拆解 → Retriever检索 → 同样的打分标准 ──
         try:
-            plan = run_planner(q)               # LLM: "需要查财务+技术，拆成2个子任务"
-            ar = run_retriever(plan)            # 并发调 finance + vector
-        except Exception as e:                   # API 挂了别崩，打印错误继续
+            plan = run_planner(question)
+            agentic_results = run_retriever(plan)
+        except Exception as e:
             print(f"\n[ERROR] Agentic failed: {e}", file=sys.stderr)
-            ar = {}
-        am = evaluate_retrieval(ar, kw)         # 和静态版用同一把尺子量
+            agentic_results = {}
+        agentic_metrics = evaluate_retrieval(agentic_results, expected_keywords)
 
         # ── 打印这一行的对比结果 ──
-        display_q = q[:26] + ("…" if len(q) > 26 else "")
+        display_text = question[:26] + ("…" if len(question) > 26 else "")
         print(row_fmt.format(
-            _pad(display_q, 30),
-            sm["prec3"], sm["mrr"], sm["ndcg3"],   # 静态三个分数
-            am["prec3"], am["mrr"], am["ndcg3"],   # Agentic 三个分数
+            _pad(display_text, 30),
+            static_metrics["prec3"], static_metrics["mrr"], static_metrics["ndcg3"],
+            agentic_metrics["prec3"], agentic_metrics["mrr"], agentic_metrics["ndcg3"],
         ))
 
         # 收集分数，最后算平均
-        for mode, m in [("static", sm), ("agentic", am)]:
+        for mode_name, scores in [("static", static_metrics), ("agentic", agentic_metrics)]:
             for key in ("prec3", "mrr", "ndcg3"):
-                agg[mode][key].append(m[key])
+                all_scores[mode_name][key].append(scores[key])
 
     # 汇总平均
     print("-" * 86)
-    avg_s = {k: sum(v) / len(v) for k, v in agg["static"].items()}
-    avg_a = {k: sum(v) / len(v) for k, v in agg["agentic"].items()}
+    avg_static = {k: sum(v) / len(v) for k, v in all_scores["static"].items()}
+    avg_agentic = {k: sum(v) / len(v) for k, v in all_scores["agentic"].items()}
     print(row_fmt.format(
         _pad("平均", 30),
-        avg_s["prec3"], avg_s["mrr"], avg_s["ndcg3"],
-        avg_a["prec3"], avg_a["mrr"], avg_a["ndcg3"],
+        avg_static["prec3"], avg_static["mrr"], avg_static["ndcg3"],
+        avg_agentic["prec3"], avg_agentic["mrr"], avg_agentic["ndcg3"],
     ))
 
     # 结论
