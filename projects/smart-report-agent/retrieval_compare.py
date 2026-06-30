@@ -8,6 +8,7 @@
 """
 import math
 import os
+import re
 import sys
 
 # 允许从同目录导入 four_agent_system（无 __init__.py 的平级脚本）
@@ -45,6 +46,14 @@ def _dcg(grades: list[int]) -> float:
     """DCG: 位置越靠后权重越低。排第1位权重=1/log₂(2)=1, 排第3位权重=1/log₂(4)=0.5。
     公式: Σ(g_i / log₂(i+2)), i从0开始所以+2。"""
     return sum(g / math.log2(i + 2) for i, g in enumerate(grades))
+
+
+def _keyword_match(keyword: str, text: str) -> bool:
+    """关键词匹配。英文用 \b 单词边界防止子串误配（如 "AI" 误匹配 "RAID"），
+    中文用子串匹配（中文无空格分词，"研发部" 应匹配"研发部门"）。"""
+    if keyword.isascii():
+        return bool(re.search(r'\b' + re.escape(keyword) + r'\b', text, re.IGNORECASE))
+    return keyword.lower() in text.lower()
 
 
 # ═══ 评估数据集: 8 QA pair，覆盖单源/跨源/对比 ═══
@@ -85,12 +94,12 @@ QA_PAIRS = [
 def static_retrieve(query: str) -> dict[str, str]:
     """纯关键词规则匹配，模拟传统的「if 含"预算"→查财务」硬编码路由。
     这就是没有 Agent 时的做法——规则是人写死的，覆盖不了的查询就直接漏掉。
-    与 Agentic 的差别: 问到"研发部技术投入和预算效率"，Agentic 会拆成2个子任务
-    （查财务+查技术），静态版只能命中一个规则分支。"""
+    与 Agentic 的差别: 静态版的四个规则并列执行，跨源查询可同时命中多分支——
+    但它没有 Agentic 那种「分析→拆解→路由」的协同能力，规则靠人工维护，覆盖不全。"""
     results: dict[str, str] = {}
     query_text = query
-    # 试着从问题里找出部门名（按字符串包含匹配）
-    department = next((d for d in ORG_HIERARCHY if d in query_text), None)
+    # 试着从问题里找出部门名（按字符串包含匹配，长词优先——"研发部"而非"研发"）
+    department = next((d for d in sorted(ORG_HIERARCHY, key=len, reverse=True) if d in query_text), None)
 
     # ── 以下四个 if 块就是"规则"：哪个关键词命中，就调哪个数据源 ──
 
@@ -125,7 +134,7 @@ def _grade_relevance(content: str, keywords: list[str]) -> int:
     if not content:
         return 0
     c = str(content).lower()                   # 忽略大小写
-    match_cnt = sum(1 for kw in keywords if kw.lower() in c)  # 数命中了几个关键词
+    match_cnt = sum(1 for kw in keywords if _keyword_match(kw, c))  # 数命中了几个关键词
     if match_cnt == 0:
         return 0
     ratio = match_cnt / len(keywords)           # 命中率 = 命中数/总关键词数
@@ -152,9 +161,10 @@ def evaluate_retrieval(
     )
     top_k = scored[:k]         # 只看前 K 个（k=3）
 
-    # ① P@K: 前K个中有几个是相关的（grade>0就算相关），除以K
-    # 如果4个数据源都相关, P@3 = 3/3 = 1.0; 只有1个相关, P@3 = 1/3 = 0.33
-    prec_k = sum(1 for _, grade in top_k if grade > 0) / len(top_k) if top_k else 0.0
+    # ① P@K: 前K个中有几个是相关的（grade>0就算相关），除以固定K
+    # 分母用 k 而非 len(top_k): 标准 P@K 以固定 K 为分母，结果不足 K 个时
+    # 缺失位视为不相关（0分），避免高估（如仅1个结果相关 → P@3=1/3≈0.33，而非1/1=1.0）
+    prec_k = sum(1 for _, grade in top_k if grade > 0) / k if top_k else 0.0
 
     # ② MRR: 第一个相关文档排在第几位？1/rank
     # 排在位置1 → 1/1=1.0; 排在位置3 → 1/3=0.33; 一个都不相关 → 0
@@ -204,23 +214,32 @@ def run_evaluation() -> None:
         try:
             plan = run_planner(question)
             agentic_results = run_retriever(plan)
+            agentic_metrics = evaluate_retrieval(agentic_results, expected_keywords)
         except Exception as e:
             print(f"\n[ERROR] Agentic failed: {e}", file=sys.stderr)
-            agentic_results = {}
-        agentic_metrics = evaluate_retrieval(agentic_results, expected_keywords)
+            agentic_metrics = None
 
         # ── 打印这一行的对比结果 ──
         display_text = question[:26] + ("…" if len(question) > 26 else "")
-        print(row_fmt.format(
-            _pad(display_text, 30),
-            static_metrics["prec3"], static_metrics["mrr"], static_metrics["ndcg3"],
-            agentic_metrics["prec3"], agentic_metrics["mrr"], agentic_metrics["ndcg3"],
-        ))
+        if agentic_metrics is not None:
+            print(row_fmt.format(
+                _pad(display_text, 30),
+                static_metrics["prec3"], static_metrics["mrr"], static_metrics["ndcg3"],
+                agentic_metrics["prec3"], agentic_metrics["mrr"], agentic_metrics["ndcg3"],
+            ))
+        else:
+            print(row_fmt.format(
+                _pad(display_text, 30),
+                static_metrics["prec3"], static_metrics["mrr"], static_metrics["ndcg3"],
+                float('nan'), float('nan'), float('nan'),
+            ))
 
-        # 收集分数，最后算平均
-        for mode_name, scores in [("static", static_metrics), ("agentic", agentic_metrics)]:
+        # 收集分数，最后算平均（Agentic 失败时跳过，避免全0拉低均值）
+        for key in ("prec3", "mrr", "ndcg3"):
+            all_scores["static"][key].append(static_metrics[key])
+        if agentic_metrics is not None:
             for key in ("prec3", "mrr", "ndcg3"):
-                all_scores[mode_name][key].append(scores[key])
+                all_scores["agentic"][key].append(agentic_metrics[key])
 
     # 汇总平均
     print("-" * 86)
