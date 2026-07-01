@@ -1,0 +1,25 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: smart-report-agent-java
+
+# ===== LangChain4j: OpenAI 兼容模式连接 DeepSeek (和 Python 版保持一致) =====
+langchain4j:
+  openai:
+    api-key: ${DEEPSEEK_API_KEY}
+    base-url: https://api.deepseek.com/v1
+    chat-model: deepseek-chat
+    temperature: 0.1
+    max-tokens: 2048
+  embedding:
+    # DeepSeek 不支持 /v1/embeddings，嵌入模型走 DashScope 兼容模式
+    api-key: ${DASHSCOPE_API_KEY}
+    base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    model: text-embedding-v2
+
+# ===== 日志 — 可以看到检索和生成的链路信息 =====
+logging:
+  level:
+    com.example.smartreport: DEBUG

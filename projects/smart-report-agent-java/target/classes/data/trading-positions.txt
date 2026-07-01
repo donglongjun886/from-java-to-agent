@@ -1,0 +1,3 @@
+CONFIDENTIAL — Position Summary (2026-06-25): Total AUM 8.5B CNY. Allocation: Tech 35%, Financials 25%, Consumer 18%, Healthcare 12%, Energy 10%. Top 3: CITIC Securities 1.2B (cost 22.5), Moutai 0.95B (cost 1680), CATL 0.82B (cost 195). Unrealized P&L +380M YTD. Leverage 1.15x (limit 1.5x).
+
+CONFIDENTIAL — Quantitative Trading Signal (2026-06-25 14:30): BUY 600036 CMB. Multi-factor confidence 0.87. Technical: MACD golden cross, RSI(14)=42 (oversold bounce), volume 1.8x avg. Target 45.2 (+15% from 39.3), stop 36.5 (-7%). Signal expires 48h. Position sizing: 2% of AUM.

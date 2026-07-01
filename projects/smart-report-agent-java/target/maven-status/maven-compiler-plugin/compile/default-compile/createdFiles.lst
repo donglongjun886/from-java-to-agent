@@ -1,0 +1,15 @@
+com/example/smartreport/model/QueryRequest.class
+com/example/smartreport/service/QueryService.class
+com/example/smartreport/config/LangChain4jConfig.class
+com/example/smartreport/service/QueryService$QueryResult.class
+com/example/smartreport/controller/RagController.class
+com/example/smartreport/model/QueryResponse$Citation.class
+com/example/smartreport/service/IngestService$DocMeta.class
+com/example/smartreport/config/EmbeddingProperties.class
+com/example/smartreport/model/IngestRequest.class
+com/example/smartreport/config/RagProperties.class
+com/example/smartreport/model/StatsResponse.class
+com/example/smartreport/SmartReportApplication.class
+com/example/smartreport/service/QueryService$Citation.class
+com/example/smartreport/service/IngestService.class
+com/example/smartreport/model/QueryResponse.class

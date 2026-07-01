@@ -1,0 +1,11 @@
+/Users/donglongjun/IdeaProjects/from-java-to-agent/projects/smart-report-agent-java/src/main/java/com/example/smartreport/SmartReportApplication.java
+/Users/donglongjun/IdeaProjects/from-java-to-agent/projects/smart-report-agent-java/src/main/java/com/example/smartreport/config/EmbeddingProperties.java
+/Users/donglongjun/IdeaProjects/from-java-to-agent/projects/smart-report-agent-java/src/main/java/com/example/smartreport/config/LangChain4jConfig.java
+/Users/donglongjun/IdeaProjects/from-java-to-agent/projects/smart-report-agent-java/src/main/java/com/example/smartreport/config/RagProperties.java
+/Users/donglongjun/IdeaProjects/from-java-to-agent/projects/smart-report-agent-java/src/main/java/com/example/smartreport/controller/RagController.java
+/Users/donglongjun/IdeaProjects/from-java-to-agent/projects/smart-report-agent-java/src/main/java/com/example/smartreport/model/IngestRequest.java
+/Users/donglongjun/IdeaProjects/from-java-to-agent/projects/smart-report-agent-java/src/main/java/com/example/smartreport/model/QueryRequest.java
+/Users/donglongjun/IdeaProjects/from-java-to-agent/projects/smart-report-agent-java/src/main/java/com/example/smartreport/model/QueryResponse.java
+/Users/donglongjun/IdeaProjects/from-java-to-agent/projects/smart-report-agent-java/src/main/java/com/example/smartreport/model/StatsResponse.java
+/Users/donglongjun/IdeaProjects/from-java-to-agent/projects/smart-report-agent-java/src/main/java/com/example/smartreport/service/IngestService.java
+/Users/donglongjun/IdeaProjects/from-java-to-agent/projects/smart-report-agent-java/src/main/java/com/example/smartreport/service/QueryService.java

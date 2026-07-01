@@ -1,0 +1,5 @@
+CSRC Regulation 2026-47: Pre-trade risk controls mandatory for all algorithmic trading by Jan 2027. Requirements: real-time order validation (price/volume limits), kill-switch within 50ms, full audit trail logging per order. Penalty: up to 5M CNY + trading suspension. Impact: ~20% existing algo strategies need modification, compliance cost +3-5M per desk.
+
+Audit Trail Summary Q2 2026: 12,847 trades reviewed. 3 flagged: Desk B 2026-04-15 (suspected wash trading, 85M CNY), Desk A 2026-05-02 (cross-exchange manipulation, 120M CNY), Desk C 2026-05-20 (unauthorized algo parameter change). Compliance score 94.2/100 (below 95 target).
+
+OFAC SDN List Update (2026-06-24): 6 entities added, 2 applicable to APAC network. Entity A: Shanghai shipping co. (DPRK sanctions evasion). Entity B: HK trading firm (Iran oil). Required: freeze assets, block transactions, file SAR 30 days. Existing exposure: zero.

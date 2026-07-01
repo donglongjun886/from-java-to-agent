@@ -1,0 +1,1 @@
+CONFIDENTIAL — Internal Investigation Case 2026-07: Trader at Desk B (ID TRD-3421) executed unauthorized cross-border transfer 5M USD to Cayman Islands entity on 2026-05-28, bypassing internal approval. Root cause: dual-control disabled during system upgrade. Recommend: immediate termination, mandatory 4-eyes for transfers >1M, revoke Desk B supervisor license.
