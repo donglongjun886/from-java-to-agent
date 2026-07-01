@@ -47,6 +47,8 @@ class LLMError(Exception):
     pass
 
 def ask_llm(system_prompt: str, user_content: str, temperature: float = 0.1) -> str:
+    # 【Context Reset】每次调用创建独立 messages 列表，不保留历史上下文。
+    # 四个 Agent 之间传递的是结构化数据（plan dict / retrieved dict / answer str），而非共享消息数组。
     try:
         resp = client.chat.completions.create(model=MODEL, temperature=temperature,
             messages=[{"role": "system", "content": system_prompt},
@@ -185,6 +187,8 @@ def run_evaluator(user_query: str, answer: str, retrieved: dict[str, str]) -> di
 
 # ── 主流水线 ──
 def run_pipeline(user_query: str, verbose: bool = True) -> dict:
+    # 【Context Reset】每次调用 run_pipeline 都是独立上下文，不累积历史。所有中间结果（plan/retrieved/answer/evaluation）
+    # 均为局部变量，管道执行完毕后即释放，确保多个查询之间互不污染。
     log = []
     try:
         plan = run_planner(user_query)
@@ -220,6 +224,8 @@ if __name__ == "__main__":
         "对比各个部门的预算利用率，哪个部门最需要优化？",                  # 对比分析
     ]
     for qi, q in enumerate(DEMOS, 1):
+        # 【Context Reset】每个查询独立调用 run_pipeline，前一个查询的 plan/retrieved/answer/evaluation
+        # 不会传递到下一个查询。每次管道调用从零开始构建上下文，确保查询之间互不污染。
         logging.info("=" * 70)
         logging.info(f"查询 {qi}: {q}")
         logging.info("=" * 70)

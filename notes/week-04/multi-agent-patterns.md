@@ -90,11 +90,67 @@ AgentA(视角1) ←→ AgentB(视角2) ←→ AgentC(视角3)
 
 ---
 
-## 4. 不依赖框架的实现思路
+## 4. Human-in-the-Loop（人在环路）
+
+HITL 的核心思想：Agent 在执行关键操作前暂停，等待人工审批后再继续。并非「Agent 能力不足时的被动兜底」，而是「系统架构的主动设计」——将人的判断作为自动化流程的一等公民。
+
+**Java 类比**：审批工作流（Flowable/Activiti）的 `userTask` 节点。流程走到某个节点后挂起，等人审批通过/驳回后再继续。Agent 的 HITL 本质上就是工作流引擎里的「人工任务节点」，不同的是挂起的是 LLM 推理过程而非业务流程实例。
+
+| 维度 | 工作流 userTask | Agent HITL |
+|------|-----------------|------------|
+| **挂起对象** | 流程实例（数据库持久化） | 图状态（`Checkpointer` 快照） |
+| **恢复触发** | 回调 API / 表单提交 | `Command(resume=...)` 传入审批意见 |
+| **审批内容** | 表单字段 | LLM 生成的内容（计划、SQL、决策） |
+| **超时机制** | 定时器边界事件 | 自定义超时回调策略 |
+
+### 4.1 LangGraph `interrupt` 机制
+
+在图的某个节点中调用 `interrupt()`，挂起执行并持久化状态。人工确认后通过 `Command(resume=...)` 恢复。
+
+```python
+from langgraph.graph import StateGraph
+from langgraph.types import interrupt
+
+def approval_node(state):
+    # 关键操作前挂起，等待人工确认
+    plan = state["plan"]
+    # 安全提示：若 plan 直传前端渲染，需防范 XSS/Markdown 注入
+    decision = interrupt({
+        "message": "以下执行计划是否批准？",
+        "plan": plan
+    })  # 对应场景：高风险操作确认（也可用于模糊决策升级、合规审计留痕）
+    if decision == "approve":
+        return {"status": "approved"}
+    elif decision == "reject":
+        return {"status": "rejected", "feedback": "需修正后重新提交"}  # 打回重做
+    else:
+        return {"status": "cancelled"}  # 终止流程
+
+# 编译图并配置 Checkpointer
+graph = builder.compile(checkpointer=MemorySaver())
+# 人工审批后恢复执行
+graph.invoke(Command(resume="approve"), config)
+```
+
+> 注：超时机制需依赖外部调度器（如 Celery/APScheduler）在指定时间后向图发送超时 resume 指令。
+
+### 4.2 三种典型场景
+
+| 场景 | 触发条件 | HITL 角色 | 类比 |
+|------|---------|----------|------|
+| **高风险操作确认** | 付款、发版、DROP TABLE | 安全闸门——人做最终确认 | 金额超限需上级审批 |
+| **模糊决策升级** | Agent 置信度低或多方案分歧大 | 决策辅助——Agent 给选项，人选 | 客服：疑难工单转人工 |
+| **合规审计留痕** | 敏感操作需留痕 | 记录节点——审批痕迹可追溯 | 关键交易双人复核 |
+
+> 关键认知：「HITL 不是 Agent 能力的妥协，而是将人的判断作为系统设计的一等公民。就像审批流不是业务流程的 Bug，而是风控体系的核心——人在环路里，系统才可控。」
+
+---
+
+## 5. 不依赖框架的实现思路
 
 三种模式的核心不是框架，是你如何组织 prompt + 控制流。框架省 boilerplate。
 
-### 4.1 用 system_prompt 区分角色
+### 5.1 用 system_prompt 区分角色
 
 ```python
 ROLES = {
@@ -105,7 +161,7 @@ ROLES = {
 }
 ```
 
-### 4.2 三种模式核心骨架
+### 5.2 三种模式核心骨架
 
 ```python
 # Manager-Worker：拆解 → 并行执行 → 汇总
@@ -136,7 +192,7 @@ def peer_debate(question, n=3, rounds=2):
 
 ---
 
-## 5. Agentic Retrieval 四 Tool 设计
+## 6. Agentic Retrieval 四 Tool 设计
 
 给 Agent 配备四种检索工具，让它自己决定用哪个、用几次。
 
@@ -182,7 +238,7 @@ TOOLS = [
 
 ---
 
-## 6. 框架选型认知
+## 7. 框架选型认知
 
 | 维度 | LangGraph | OpenAI Agents SDK | CrewAI |
 |------|-----------|-------------------|--------|
@@ -201,9 +257,9 @@ TOOLS = [
 
 ---
 
-## 7. 面试要点
+## 8. 面试要点
 
-### 7.1 白板画法（三种模式 30 秒画完）
+### 8.1 白板画法（三种模式 30 秒画完）
 
 ```
 Manager-Worker:      Pipeline:           Peer-to-Peer:
@@ -216,7 +272,7 @@ Manager-Worker:      Pipeline:           Peer-to-Peer:
 
 画完图一句话概括：「Manager-Worker 是任务拆解派发，Pipeline 是阶段串行，Peer-to-Peer 是多方辩论。核心差异在控制流——中心化 vs 链式 vs 去中心化。」
 
-### 7.2 必答关键句
+### 8.2 必答关键句
 
 **Q: Agentic Retrieval 比 RAG 更准吗？**
 
@@ -230,7 +286,7 @@ Manager-Worker:      Pipeline:           Peer-to-Peer:
 
 > 「三种方式：1) 共享 State 对象（如 LangGraph 的 state，类似 ThreadLocal 传参）；2) 显式传递（上一步输出注入下一步 prompt）；3) 共享外部存储（Redis/向量库），适合跨会话。选哪种取决于同步还是异步。」
 
-### 7.3 常见陷阱
+### 8.3 常见陷阱
 
 | 陷阱 | 现象 | 解法 |
 |------|------|------|
