@@ -34,8 +34,10 @@
 - ✅ **Week 3 收工**：19文件~3700行/3轮review/6篇笔记写审修全闭环
 - ✅ **Day 16（06/29）**：Agentic Retrieval + 多Agent协作（3种模式）+ 四Agent协同系统 + 3篇Week4笔记写审修
 - ✅ **Day 17（06/30）**：检索评估对比 — 静态RAG vs Agentic（P@3/MRR/NDCG）+ 诚实结论
-- 详细见 `journal/week-01/` ~ `journal/week-03/` 和 `notes/week-01/` ~ `notes/week-04/`
-- 详细见 `journal/week-01/` ~ `journal/week-03/` 和 `notes/week-01/` ~ `notes/week-04/`
+- ✅ **Day 18（07/01）**：四Agent联调 + Context Reset + Week3晚段全面补完（15专题+20面经+Java RAG项目）
+- ✅ **Day 19（07/02）**：负载压测 + 故障注入4/4 + 4文件Review+Fix+全量回归 + 求职投递启动
+- 🔲 **Day 20（07/03）**：全面复盘 + 技能矩阵 + 对标JD自评
+- 详细见 `journal/week-01/` ~ `journal/week-04/` 和 `notes/week-01/` ~ `notes/week-04/`
 
 ## 学习路径
 
