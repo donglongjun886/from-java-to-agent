@@ -10,6 +10,7 @@ import math
 import os
 import re
 import sys
+import traceback
 
 # 允许从同目录导入 four_agent_system（无 __init__.py 的平级脚本）
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -42,6 +43,21 @@ def _pad(s: str, width: int) -> str:
     return s + ' ' * max(0, width - _display_width(s))
 
 
+def _truncate_by_width(s: str, max_width: int, ellipsis: str = "…") -> str:
+    """按显示宽度截断字符串，避免终端表格错位。
+    中文字符显示宽度是英文的 2 倍，按字符数截断会导致中文列撑破对齐。"""
+    if _display_width(s) <= max_width:
+        return s
+    # 逐字符累加宽度，超过阈值时截断
+    w = 0
+    for i, c in enumerate(s):
+        cw = 2 if '一' <= c <= '鿿' or '　' <= c <= '〿' else 1
+        if w + cw > max_width - _display_width(ellipsis):
+            return s[:i] + ellipsis
+        w += cw
+    return s
+
+
 def _dcg(grades: list[int]) -> float:
     """DCG: 位置越靠后权重越低。排第1位权重=1/log₂(2)=1, 排第3位权重=1/log₂(4)=0.5。
     公式: Σ(g_i / log₂(i+2)), i从0开始所以+2。"""
@@ -49,10 +65,14 @@ def _dcg(grades: list[int]) -> float:
 
 
 def _keyword_match(keyword: str, text: str) -> bool:
-    """关键词匹配。英文用 \b 单词边界防止子串误配（如 "AI" 误匹配 "RAID"），
-    中文用子串匹配（中文无空格分词，"研发部" 应匹配"研发部门"）。"""
+    """关键词匹配。英文用负向断言防止子串误配（如 "AI" 误匹配 "RAID"），
+    中文用子串匹配（中文无空格分词，"研发部" 应匹配"研发部门"）。
+
+    注意：不能用 \\b 单词边界。中文字符被视为 \\w，中英混合文本中英文词与
+    中文字符之间不存在 \b 边界，导致 "K8s" 等英文关键词在中文语境中匹配失败。"""
     if keyword.isascii():
-        return bool(re.search(r'\b' + re.escape(keyword) + r'\b', text, re.IGNORECASE))
+        pattern = r'(?<![a-zA-Z0-9])' + re.escape(keyword) + r'(?![a-zA-Z0-9])'
+        return bool(re.search(pattern, text, re.IGNORECASE))
     return keyword.lower() in text.lower()
 
 
@@ -217,10 +237,11 @@ def run_evaluation() -> None:
             agentic_metrics = evaluate_retrieval(agentic_results, expected_keywords)
         except Exception as e:
             print(f"\n[ERROR] Agentic failed: {e}", file=sys.stderr)
+            traceback.print_exc()
             agentic_metrics = None
 
         # ── 打印这一行的对比结果 ──
-        display_text = question[:26] + ("…" if len(question) > 26 else "")
+        display_text = _truncate_by_width(question, 26)
         if agentic_metrics is not None:
             print(row_fmt.format(
                 _pad(display_text, 30),
@@ -244,7 +265,7 @@ def run_evaluation() -> None:
     # 汇总平均
     print("-" * 86)
     avg_static = {k: sum(v) / len(v) for k, v in all_scores["static"].items()}
-    avg_agentic = {k: sum(v) / len(v) for k, v in all_scores["agentic"].items()}
+    avg_agentic = {k: (sum(v) / len(v) if v else float('nan')) for k, v in all_scores["agentic"].items()}
     print(row_fmt.format(
         _pad("平均", 30),
         avg_static["prec3"], avg_static["mrr"], avg_static["ndcg3"],

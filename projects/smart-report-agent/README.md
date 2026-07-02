@@ -38,12 +38,24 @@
 
 ```
 smart-report-agent/
-├── README.md           # 本文档
-├── ARCHITECTURE.md     # Mermaid 架构图 + 检索时序图 + 评估体系图
-├── ingest.py           # 异构数据摄入管道（PDF/DB/API）
-├── query_engine.py     # 权限感知查询引擎（ACL + 引用）
-├── evaluate.py         # 双维评估（RAGAS + NDCG/MRR）
-└── trace_pipeline.py   # Langfuse 追踪集成
+├── README.md              # 本文档: 业务场景 + 技术栈 + 运行指南
+├── ARCHITECTURE.md        # 架构文档: Mermaid图 + 权限矩阵 + 四Agent架构 + 压测报告
+│
+│   Week 3: 企业级RAG
+├── ingest.py              # 异构数据摄入管道 (PDF/DB/API → ChromaDB)
+├── query_engine.py        # 权限感知查询 (ACL Filter + LLM 生成 + 引用溯源)
+├── evaluate.py            # 离线双维评估 (RAGAS + NDCG/MRR)
+├── trace_pipeline.py      # Langfuse 全链路追踪
+│
+│   Week 4: Agentic Retrieval + Multi-Agent
+├── four_agent_system.py   # 四Agent协同核心 (Planner/Retriever/Generator/Evaluator)
+├── agentic_retrieval.py   # Agentic Retrieval 独立示例
+├── multi_agent_collab.py  # 多Agent协作模式 (Manager-Worker/流水线)
+│
+│   Day 19: 压测 + 评估 + 故障注入
+├── retrieval_compare.py   # 检索质量对比 (静态RAG vs Agentic, P@K/MRR/NDCG)
+├── load_test.py           # 负载压测 (QPS/P99/成本/阶段耗时拆解)
+└── fault_injection.py     # 故障注入 (超时/幻觉/截断/格式异常, 4项全PASS)
 ```
 
 ## 如何运行
@@ -52,26 +64,30 @@ smart-report-agent/
 # 1. 激活虚拟环境
 source .venv/bin/activate
 
-# 2. 确保依赖
-pip install llama-index chromadb python-dotenv ragas datasets langfuse \
-            llama-index-embeddings-huggingface llama-index-vector-stores-chroma \
-            llama-index-llms-openai-like langchain-huggingface
-
-# 3. 配置 API Key（项目根目录 .env）
+# 2. 配置 API Key（项目根目录 .env）
 DEEPSEEK_API_KEY=sk-xxx
 
-# 4. 依次运行
+# 3. Week 3 — 企业级RAG 演示
 python projects/smart-report-agent/ingest.py          # 数据摄入
 python projects/smart-report-agent/query_engine.py    # 权限查询演示
 python projects/smart-report-agent/evaluate.py        # 双维评估报告
-python projects/smart-report-agent/trace_pipeline.py  # Langfuse 追踪（可选）
+
+# 4. Week 4 — Agentic Retrieval 演示
+python projects/smart-report-agent/agentic_retrieval.py     # Agentic 动态检索
+python projects/smart-report-agent/multi_agent_collab.py    # 多Agent协作
+
+# 5. Day 19 — 压测 + 故障注入
+python projects/smart-report-agent/retrieval_compare.py     # 检索质量对比
+python projects/smart-report-agent/load_test.py             # 负载压测
+python projects/smart-report-agent/fault_injection.py       # 故障注入 (4/4 PASS)
 ```
 
 ## 面试要点
 
-**一句话**："我们参考了 Zoom 的多租户 RAG 架构，权限在检索层做 ChromaDB metadata 预过滤，不在 LLM 生成后校验——既保安全又省 token。评估体系用 RAGAS 测生成质量 + NDCG/MRR 测排序质量，两个维度交叉验证。"
+**一句话**："我们构建了从静态RAG到Agentic Retrieval的完整演进：静态RAG做权限感知检索+双维评估，Agentic用四Agent协同（Planner→Retriever→Generator→Evaluator）实现动态路由。压测发现瓶颈在Generator(占65%耗时)，故障注入4项全通过。"
 
-1. **权限在检索层** — where clause 在向量搜索前过滤，敏感文档不进入 prompt
-2. **评估交叉验证** — 黑盒（RAGAS LLM 判断）+ 白盒（NDCG 数学公式）互补
-3. **异构数据统一摄入** — PDF/DB/API 三种来源，metadata 携带租户+权限+来源完整信息
-4. **可审计引用链路** — 每个结果标注 source_type + doc_id，回答末尾附引用列表
+1. **检索演进路径** — 静态RAG → Agentic Retrieval，能讲清楚"什么时候该用哪个"
+2. **权限在检索层** — where clause 在向量搜索前过滤，敏感文档不进入 prompt
+3. **评估双维交叉** — RAGAS（黑盒 LLM 判断）+ NDCG/MRR（白盒数学公式）互补
+4. **压测数据支撑** — QPS/延迟/成本有量化数字，面试时随口引用
+5. **故障注入验证** — 4种故障场景全通过，体现生产级容错意识

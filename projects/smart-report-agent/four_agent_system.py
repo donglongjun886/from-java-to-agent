@@ -12,15 +12,22 @@ except ImportError:
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv, find_dotenv
-load_dotenv(find_dotenv())
 from openai import OpenAI
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-api_key = os.getenv("DEEPSEEK_API_KEY")
-if not api_key: raise RuntimeError("DEEPSEEK_API_KEY not configured")
-client = OpenAI(api_key=api_key, base_url=os.getenv("OPENAI_BASE_URL", "https://api.deepseek.com"))
+_client = None
 MODEL = "deepseek-chat"
+
+def _get_client() -> OpenAI:
+    """懒加载 OpenAI client: 避免模块导入时强制读取环境变量。"""
+    global _client
+    if _client is None:
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+        if not api_key:
+            raise RuntimeError("DEEPSEEK_API_KEY not configured")
+        _client = OpenAI(api_key=api_key, base_url=os.getenv("OPENAI_BASE_URL", "https://api.deepseek.com"))
+    return _client
 
 # ── 模拟企业数据（与 multi_agent_collab.py / agentic_retrieval.py 共用） ──
 ORG_HIERARCHY = {
@@ -50,7 +57,7 @@ def ask_llm(system_prompt: str, user_content: str, temperature: float = 0.1) -> 
     # 【Context Reset】每次调用创建独立 messages 列表，不保留历史上下文。
     # 四个 Agent 之间传递的是结构化数据（plan dict / retrieved dict / answer str），而非共享消息数组。
     try:
-        resp = client.chat.completions.create(model=MODEL, temperature=temperature,
+        resp = _get_client().chat.completions.create(model=MODEL, temperature=temperature,
             messages=[{"role": "system", "content": system_prompt},
                       {"role": "user", "content": user_content}])
     except Exception as e:
@@ -107,14 +114,16 @@ def run_planner(user_query: str) -> list[dict]:
         raw = ask_llm(PLANNER_PROMPT, f"用户问题: {user_query}").strip()
     except LLMError:
         raw = ""  # LLM 不可用时直接走关键词回退
-    # 正则提取 JSON 数组, 兼容 markdown 代码块包裹等变体
-    match = re.search(r'\[.*\]', raw, re.DOTALL) if raw else None
-    if match:
-        try:
-            plan = json.loads(match.group(0))
-            return [plan] if isinstance(plan, dict) else plan
-        except json.JSONDecodeError:
-            pass
+    # 提取 JSON 数组: 用首尾边界定位而非正则贪婪匹配, 避免 LLM 输出含多处中括号时提取非法 JSON
+    if raw:
+        lb = raw.find('[')
+        rb = raw.rfind(']')
+        if lb != -1 and rb != -1 and lb < rb:
+            try:
+                plan = json.loads(raw[lb:rb+1])
+                return [plan] if isinstance(plan, dict) else plan
+            except json.JSONDecodeError:
+                pass
     # 容错: 正则未匹配或 JSON 解析失败时用关键词回退
     q = user_query
     subs = []
@@ -181,8 +190,8 @@ def run_evaluator(user_query: str, answer: str, retrieved: dict[str, str]) -> di
             if match:
                 try: result["relevancy"] = float(match.group(1))
                 except ValueError: pass
-        elif l.startswith("建议") and ":" in l:
-            result["suggestion"] = l.split(":", 1)[-1].strip()
+        elif l.startswith("建议") and (":" in l or "：" in l):
+            result["suggestion"] = re.split(r'[:：]', l, 1)[-1].strip()
     return result
 
 # ── 主流水线 ──
@@ -215,9 +224,13 @@ def run_pipeline(user_query: str, verbose: bool = True) -> dict:
     except LLMError as e:
         logging.error("Pipeline 中断于 LLM 调用异常: %s", e)
         return {"plan": [], "retrieved": {}, "answer": f"[流水线中断] {e}", "evaluation": {}}
+    except Exception as e:
+        logging.error("Pipeline 异常(非LLM): %s: %s", type(e).__name__, e)
+        return {"plan": [], "retrieved": {}, "answer": "系统异常", "evaluation": {}}
 
 # ── 演示: 3 组查询 ──
 if __name__ == "__main__":
+    load_dotenv(find_dotenv())
     DEMOS = [
         "研发部Q3预算利用率是多少？",                                   # 单源
         "分析研发部Q3的技术投入和预算效率，给出Q4建议",                    # 跨源综合

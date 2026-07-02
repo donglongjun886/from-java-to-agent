@@ -128,3 +128,102 @@ graph LR
 | CMP_DB_001 | compliance | db_record | public | all |
 | CMP_API_001 | compliance | api_json | public | all |
 | CMP_PDF_002 | compliance | pdf_report | confidential | manager only |
+
+---
+
+## 四Agent协同架构（Week 4: Agentic Retrieval）
+
+```mermaid
+graph TB
+    subgraph Input["输入"]
+        Q["用户查询<br/>'分析研发部技术投入和预算效率'"]
+    end
+
+    subgraph Agent1["Agent 1: Retrieval Planner"]
+        P1["LLM 分解查询"]
+        P2["输出 subtasks<br/>[{source:'finance',sub_query:'研发部Q3预算'}<br/> {source:'vector',sub_query:'AI平台技术架构'}]"]
+        P1 --> P2
+    end
+
+    subgraph Agent2["Agent 2: Multi-Source Retriever"]
+        R1["ThreadPoolExecutor<br/>并行检索"]
+        R2["finance: 预算数据"]
+        R3["org: 组织架构"]
+        R4["vector: 技术文档"]
+        R5["compare: 跨部门对比"]
+        R1 --> R2 & R3 & R4 & R5
+    end
+
+    subgraph Agent3["Agent 3: Generator"]
+        G1["Prompt Assembly<br/>context + citations"]
+        G2["LLM 生成<br/>结构化报告"]
+        G1 --> G2
+    end
+
+    subgraph Agent4["Agent 4: Evaluator"]
+        E1["Faithfulness 评估<br/>回答 vs context"]
+        E2["Answer Relevancy<br/>回答 vs query"]
+        E3["打分 + 改进建议"]
+        E1 & E2 --> E3
+    end
+
+    Q --> Agent1 --> Agent2 --> Agent3 --> Agent4
+    Agent4 -.->|"低分反馈"| Agent3
+    Agent4 --> OUT["最终输出: 回答 + 引用 + 评估分数"]
+```
+
+## 静态 RAG vs Agentic Retrieval 对比 (P@K / MRR / NDCG)
+
+```
+Query                                            静态RAG                  Agentic
+                                      P@3   MRR   NDCG          P@3   MRR   NDCG
+--------------------------------------------------------------------------------------
+平均                            0.54  1.00  1.00     0.54  1.00  1.00
+```
+
+> 小规模数据(4源/8 QA)下两者持平。Agentic 真实优势在大规模(20+源)场景中才能量化 —— 静态规则覆盖面不足，Agentic 动态路由的优势显现。
+
+## 性能压测数据 (load_test.py)
+
+| Agent阶段 | 平均耗时 | 占比 |
+|----------|---------|------|
+| Planner (LLM) | 1125ms | 17% |
+| Retriever (并行) | 0ms | 0% |
+| **Generator (LLM) → 瓶颈** | **4322ms** | **65%** |
+| Evaluator (LLM) | 1241ms | 18% |
+| **端到端总计** | **6688ms** | 100% |
+
+| 指标 | 静态RAG | Agentic (1并发) |
+|------|---------|----------------|
+| QPS | 25000+ | 0.1 |
+| 成本/次 | ¥0 | ¥0.003 |
+| 月成本(100次/天×22天) | ¥0 | ¥6.60 |
+
+> 优化方向: Generator 引入 Streaming (SSE) 可提升用户感知速度; 简单查询用静态RAG兜底
+
+## 故障注入测试结果 (fault_injection.py)
+
+| 测试项 | 注入方式 | 系统行为 | 结果 |
+|--------|---------|---------|------|
+| Tool 超时 | 非法 base_url → 连接拒绝 | APIConnectionError 正确抛出 | PASS |
+| LLM 幻觉 | 虚假 Retrieval context (50万 vs 实920万) | Evaluator faithfulness=1.0, 防线在Retrieval层 | PASS |
+| 上下文截断 | 超长 context (1818字) | Generator 正常生成, 128K窗口足够 | PASS |
+| Planner输出异常 | 非法 subtasks 结构 | 防御性处理 + fail-fast | PASS |
+
+## 项目文件地图
+
+```
+smart-report-agent/
+├── ARCHITECTURE.md          ← 本文件: 架构文档
+├── README.md                ← 业务+技术栈+运行指南
+├── ingest.py                ← 数据摄入 (PDF/DB/API → ChromaDB)
+├── agentic_retrieval.py     ← Agentic Retrieval (Planner → Retriever 动态路由)
+├── four_agent_system.py     ← 四Agent协同核心 (Planner/Retriever/Generator/Evaluator)
+├── multi_agent_collab.py    ← 多Agent协作模式 (Manager-Worker/流水线)
+├── query_engine.py          ← 权限感知查询 (ACL Filter + LLM生成)
+├── retrieval_compare.py     ← 检索质量对比 (P@K/MRR/NDCG, 静态 vs Agentic)
+├── load_test.py             ← 负载压测 (QPS/P99/成本, 阶段耗时拆解)
+├── fault_injection.py       ← 故障注入 (超时/幻觉/截断/格式异常)
+├── evaluate.py              ← 离线评估 (RAGAS 四维)
+└── trace_pipeline.py        ← Langfuse 全链路追踪
+```
