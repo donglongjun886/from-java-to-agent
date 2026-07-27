@@ -1,4 +1,4 @@
-# Java 架构师面试复习提纲 v2.1
+# Java 架构师面试复习提纲 v2.2
 
 > 社招架构师面试知识域，按 P0/P1/P2 优先级分层。面试目标是「能用自己的话流畅讲出核心故事」，不是背书。
 
@@ -13,7 +13,7 @@
 | 项目 STAR + 技术选型 | **P0** | 把你做过的最难决策讲成故事 |
 | Java 并发底层原理 | **P0** | JMM→volatile→synchronized→AQS 一条线串到底 |
 | Spring Framework 深度 | **P0** | IOC/AOP/循环依赖/事务传播，框架不是黑盒 |
-| 微服务体系核心 | **P0** | 分布式事务/锁/线程池的选型与落地，补充灰度/压测/链路追踪 |
+| 微服务体系核心 | **P0** | Spring Cloud+Dubbo双线：分布式事务/锁/选型/SPI/灰度/压测/链路追踪 |
 | MySQL 深度 | **P1** | 索引→锁→MVCC→日志→主从，一条链路 |
 | Redis 深度 | **P1** | 底层数据结构→持久化→淘汰→集群→一致性 |
 | 消息队列 | **P1** | RocketMQ（业务）+ Kafka（流），双线覆盖 |
@@ -683,7 +683,17 @@ Gateway（鉴权+限流+路由）→ Nacos（服务发现+配置）→ Sentinel�
 | 最终一致性 | 本地消息表 + MQ + 定时补偿 + 对账 | **最常用** |
 | Saga | 正向+逆向补偿编排 | 长事务链路 |
 
-**TCC 追问**：空回滚（Cancel先于Try→查流水判定）、防悬挂（Cancel后Try才到→检查回滚标记拒绝）、幂等（三个阶段都要支持重入）
+**TCC 三个异常场景**：
+- 空回滚：Cancel 比 Try 先到（网络延迟或提前触发）→ 查操作流水，没有 Try 记录直接返回成功。核心：Cancel 不能因为没有 Try 就报错
+- 防悬挂：Cancel 执行完后 Try 才到（Try 因网络延迟晚到）→ 检查有 Cancel 标记，拒绝执行 Try。核心：留空不等于可以拿
+- 幂等：Try 因超时重试 → 唯一键（如 order_id + operation_type）防重。Confirm/Cancel 同样需要支持幂等
+
+**下单场景 TCC 示例**：
+- Try：冻结库存（预留，不是扣减）+ 创建预下单记录（状态=冻结中）
+- Confirm：扣减冻结库存（真正减掉）→ 订单状态改为已确认
+- Cancel：解冻库存（加回可用）→ 预下单状态改为已取消
+
+**Seata AT 原理**：代理数据源，拦截 SQL → 解析前后镜像（UNDO_LOG）→ 生成回滚 SQL → 提交时一次性回滚。优点无侵入（业务代码零改动），缺点性能开销（前后镜像+全局锁）。
 
 **选型核心**：大部分场景最终一致性就够了。最终一致性的落地关键：本地消息表 + MQ 发送 + 定时扫表补偿 + T+1 对账兜底。AT/TCC 的一致性收益要大于侵入性代价才值得用。高层次认知：好的架构设计应该通过业务边界划分和状态机设计来避免分布式事务，而不是引入更复杂的框架来处理它。
 
@@ -721,6 +731,48 @@ Gateway（鉴权+限流+路由）→ Nacos（服务发现+配置）→ Sentinel�
 
 **面试话术**：
 > 「SkyWalking 核心概念：Trace（一次完整请求链路，用全局 TraceId 串联）、Span（链路中的单个操作节点，如 HTTP 请求/DB 调用/MQ 发送）、上下文传播（通过 HTTP Header/MQ 元数据传递 TraceId + SpanId）。Java Agent 字节码增强自动埋点，对业务代码零侵入。排查问题时从一个慢 Trace 钻取到具体 Span，定位到具体的 SQL/接口调用。」
+
+### Dubbo 核心
+
+**Dubbo vs Spring Cloud 选型**：
+- Dubbo：RPC 框架（服务间调用），单一长连接+Netty+NIO，序列化效率高，性能更强
+- Spring Cloud：微服务全家桶，生态更全（Gateway+Config+Security），但 HTTP 协议开销大
+- 实际项目可以混用：Dubbo 做 RPC 调用，Nacos 做服务发现，Sentinel 做熔断
+
+**协议模型**：
+- dubbo 协议（默认）：单一长连接+NIO+异步，适合小数据量高并发
+- http 协议：短连接，适合异构系统或跨语言调用
+
+**调用链路（一次完整 RPC）**：
+```
+Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger → Transporter
+```
+- Proxy：代理层，封装调用细节；Cluster：集群容错（failover/failfast）；LoadBalance：负载均衡；Filter Chain：责任链（监控/鉴权/限流）；Protocol：协议层编解码；Exchanger：请求响应映射；Transporter：Netty 网络传输
+
+**SPI 扩展机制**：
+- JDK SPI：破坏性加载，一次性实例化所有实现（如所有 JDBC 驱动）
+- Dubbo SPI：key-value 方式按需加载，`@SPI` 指定默认实现，`@Adaptive` 自动生成适配类，`ExtensionLoader.getExtensionLoader()` 获取扩展
+- 这是 Dubbo 可插拔设计的灵魂——协议、注册中心、负载均衡、序列化全部通过 SPI 切换。JDK SPI 一次性实例化所有实现，Dubbo SPI 按需加载
+
+**负载均衡**：
+- Random：加权随机，默认
+- RoundRobin：平滑加权轮询（Nginx 同款）
+- LeastActive：选活跃数最小的节点（消费者本地计数器）
+- ConsistentHash：相同参数到同一节点
+- 预热权重：刚启动权重从 0 缓慢升到设定值，避免冷启动被压垮
+
+**优雅下线**：
+1. 注册中心摘除（不再接收新请求）
+2. 等待已接收请求处理完
+3. 协议层关闭（`dubbo.service.shutdown.wait`，默认 10s）
+4. Netty 关闭
+- K8s 场景需配合 `terminationGracePeriodSeconds`，确保 preStop hook 到 SIGTERM 之间留够时间
+
+**服务治理**：
+- 分组与版本：`group` 区分环境（dev/test/prod），`version` 做灰度路由
+- 服务降级：`mock=force:return null` 强制降级，`mock=fail:return null` 失败后降级
+- 本地存根（Stub）：消费者端在执行远程调用前后的拦截逻辑，可做参数验证/缓存等
+- 路由规则：条件路由按参数/标签路由流量，实现灰度发布
 
 ---
 
@@ -1052,7 +1104,7 @@ Gateway（鉴权+限流+路由）→ Nacos（服务发现+配置）→ Sentinel�
 - 优化：使用增量重分配协议（Cooperative Rebalancing, Kafka 2.4+），只重新分配有变化的分区
 - 面试时说：「Kafka 的重平衡是老生常谈的痛点，生产环境要配置合理的 session.timeout.ms 和 heartbeat.interval.ms，避免误触发」
 
-### 7.2 RocketMQ 架构（补充重要点）
+### 7.2 RocketMQ 架构
 
 **架构角色**：NameServer（无状态路由，类似 Nacos 的简化版，不选举不持久化）→ Broker（主从）→ Producer/Consumer
 
@@ -1070,6 +1122,28 @@ Gateway（鉴权+限流+路由）→ Nacos（服务发现+配置）→ Sentinel�
 **顺序消息**：
 - 同一业务 ID（订单号）的消息发到同一 MessageQueue → 同一消费者线程顺序消费
 - Producer 端用 MessageQueueSelector，Consume 端用 MessageListenerOrderly（加锁保证同一队列单线程消费）
+
+**消息重试与死信队列**：
+- 消费失败返回 RECONSUME_LATER → 进重试队列 %RETRY%consumerGroup
+- 重试间隔：10s/30s/1m/2m/3m/4m/5m/6m/7m/8m/9m/10m/20m/30m/1h/2h（默认16次）
+- 超过最大重试次数 → 进死信队列 %DLQ%consumerGroup → 人工处理
+- 面试时说：死信不是bug，是兜底机制。死信消息需要告警+人工介入
+
+**存储模型**：
+- CommitLog：所有消息顺序写入一个文件（顺序写保证高性能），每个文件默认1G
+- ConsumerQueue：按 Topic+Queue 维度索引，存消息在 CommitLog 的 offset+size+tagCode
+- 消费时先查 ConsumerQueue 拿到 offset，再读 CommitLog → 两次IO但顺序读很快
+- 对比 Kafka：Kafka 按分区独立存储，RocketMQ 所有分区共享 CommitLog
+
+**延迟消息**：
+- 不支持任意时间延迟，只支持预设的18个级别：1s/5s/10s/30s/1m/2m/3m/4m/5m/6m/7m/8m/9m/10m/20m/30m/1h/2h
+- 实现：投递到 SCHEDULE_TOPIC_XXXX 系统主题，定时任务到时间后投递到目标 Topic
+- 订单超时关单的典型场景
+
+**消费者 Rebalance**：
+- 触发条件：消费者数量变化、Topic 配置变化
+- 过程：所有消费者向 Broker 发送心跳 → Broker 通知 Rebalance → 重新分配 Queue
+- 注意：Rebalance 期间短暂暂停消费（类似 Kafka 的 STW）
 
 ### 7.3 消息可靠性三种语义
 
@@ -1250,7 +1324,28 @@ Gateway（鉴权+限流+路由）→ Nacos（服务发现+配置）→ Sentinel�
 4. **高可用**：限流/熔断/降级 + 数据一致性保证
 5. **边界与演进**：瓶颈在哪？QPS 涨 100 倍哪里先出问题？
 
-**常见题型**：秒杀/高并发架构、实时排行榜、分布式 ID 生成器、配置中心、短链系统
+**常见题型**：秒杀/高并发架构、实时排行榜、分布式 ID 生成器、配置中心、短链系统、Feed流、IM系统
+
+**短链系统**：
+- 核心：ID 生成（雪花/号段）→ Base62 编码 → 短码
+- 读写比极高：Redis 缓存短码→长链映射，读写分离
+- 过期策略：定期清理 + Lazy 删除
+
+**实时排行榜**：
+- Redis ZSet：ZINCRBY 实时更新分数，ZREVRANGE 获取 TopN
+- 大用户量：分段排行榜（前 100 名实时 + 其余定时算），二级缓存
+- 同分处理：分数相同时按时间戳排序
+
+**Feed 流系统**：
+- 推模式（小V）：发布时推到所有粉丝的收件箱（读快写慢）
+- 拉模式（大V）：读时从关注列表拉取（读慢写快）
+- 推拉结合：大V 用拉，普通用户用推。核心是冷热分离
+
+**IM/即时通讯**：
+- 单聊：客户端A → 服务端 → 客户端B（WebSocket + MQ 异步落库）
+- 群聊：发 MQ → 消费端分发 → 批量写入每个人的收件箱
+- 已读未读：每条消息记录已读水位线
+- 在线状态：心跳 + Redis 存储在线状态
 
 ### 秒杀系统完整走通示例
 
@@ -1407,34 +1502,11 @@ CREATE TABLE seckill_order (
 | 切换开销 | 大（页表/TLB/缓存都要刷新） | 小（同一地址空间） |
 | 崩溃影响 | 一个进程崩溃不影响其他 | 一个线程崩溃可能拖垮整个进程 |
 
-**虚拟内存**：
-- 核心作用：每个进程都有独立的虚拟地址空间 → 进程隔离
-- 页表：虚拟地址 → 物理地址的映射表
-- TLB（Translation Lookaside Buffer）：页表的高速缓存，地址转换先查 TLB
-- 缺页中断：访问的页面不在物理内存 → 触发中断 → OS 从磁盘加载页面
-- 面试时说：「虚拟内存 = 每个进程独占 4G（32位）地址空间的错觉，底层靠页表映射到物理内存 + 缺页中断来加载。」
+**虚拟内存**：每个进程独立的虚拟地址空间，靠页表映射到物理内存。TLB 是页表的高速缓存，缺页中断从磁盘加载页面。
 
-**CPU 缓存与伪共享**（高频追问）：
+**伪共享（False Sharing）**：两个线程修改同一缓存行（64字节）的不同变量，MESI 协议导致缓存行频繁失效。Java 解决：`@sun.misc.Contended` 注解或手动填充。Disruptor RingBuffer、CHM CounterCell 都用此技术。
 
-```
-L1 Cache → 32KB，每个核心私有，延迟 ~1ns
-L2 Cache → 256KB，每个核心私有，延迟 ~3ns
-L3 Cache → 数MB-数十MB，多核心共享，延迟 ~10ns
-主内存 → GB级，延迟 ~60-100ns
-```
-
-**伪共享（False Sharing）**：
-- 两个线程修改同一个缓存行（Cache Line，通常 64 字节）中的不同变量
-- CPU 缓存一致性协议（MESI）会导致缓存行在核心间频繁失效 → 性能下降
-- 解决方案：**填充（Padding）** 让两个变量落在不同缓存行
-- Java 方案：JDK8 的 `@sun.misc.Contended` 注解（需要 -XX:-RestrictContended 开启），或手动填充 long 数组
-
-追问：「Java 中什么场景会遇到伪共享？」→ Disruptor 的 RingBuffer 就是通过填充解决伪共享问题；ConcurrentHashMap 的 CounterCell 也用 @Contended 避免伪共享。
-
-**上下文切换**：
-- 触发条件：时间片耗尽、IO 阻塞、锁等待、sleep/yield
-- 开销：保存/恢复寄存器和程序计数器 + TLB 刷新 + 缓存可能失效
-- 一次上下文切换约 1-10 微秒，高并发场景下不可忽视
+**上下文切换**：触发：时间片耗尽/IO阻塞/锁等待。开销：寄存器/TLB/缓存刷新，一次约 1-10 微秒。
 
 ### 12.2 网络基础
 
@@ -1510,23 +1582,20 @@ CDN 原理：DNS 返回 CDN 边缘节点 IP（不是源站 IP）→ 用户访问
 
 > 面试官问「你在项目中用过哪些设计模式」→ 最好的回答是讲**设计模式在框架中的应用**，体现你对框架不只是使用者，而是理解其设计哲学。
 
-| 模式 | Spring 中的应用 | MyBatis 中的应用 | 一句话 |
-|------|----------------|-----------------|--------|
-| **单例** | Bean 默认 scope=singleton | SqlSessionFactory | IOC 容器统一管理实例 |
-| **工厂** | BeanFactory、FactoryBean | SqlSessionFactoryBuilder | 封装复杂对象创建 |
-| **代理** | AOP（JDK/CGLIB 动态代理） | MapperProxy（Mapper 接口代理） | 无侵入增强功能 |
-| **模板方法** | JdbcTemplate、RestTemplate、TransactionTemplate | BaseExecutor | 固定流程，子类差异化步骤 |
-| **策略** | InstantiationStrategy（Bean 实例化策略） | TypeHandler、Cache 的多种实现 | 运行时选择算法 |
-| **装饰器** | TransactionAwareCacheDecorator | CachingExecutor（二级缓存装饰） | 不改变接口，增强能力 |
-| **观察者** | ApplicationListener 事件机制 | — | 解耦组件间依赖 |
-| **适配器** | HandlerAdapter（适配不同 Controller） | — | 统一不同接口 |
-| **责任链** | Filter Chain、Interceptor Chain | InterceptorChain（插件链） | 多个处理器串行处理 |
-| **建造者** | BeanDefinitionBuilder | SqlSessionFactoryBuilder | 分步构建复杂对象 |
+| 模式 | Spring 中的应用 | 一句话 |
+|------|----------------|--------|
+| **单例** | Bean 默认 scope=singleton | IOC 容器统一管理实例 |
+| **工厂** | BeanFactory、FactoryBean | 封装复杂对象创建 |
+| **代理** | AOP（JDK/CGLIB 动态代理） | 无侵入增强功能 |
+| **模板方法** | JdbcTemplate、RestTemplate | 固定流程，子类差异化步骤 |
+| **策略** | InstantiationStrategy | 运行时选择算法 |
+| **观察者** | ApplicationListener 事件机制 | 解耦组件间依赖 |
+| **责任链** | Filter Chain、Interceptor Chain | 多个处理器串行处理 |
 
 **面试话术（挑 3-4 个讲）**：
-> 「Spring 中最经典的设计模式应用有三：一是**代理模式**实现 AOP——动态代理对 Bean 做无侵入增强；二是**模板方法模式**——JdbcTemplate 把连接管理/异常处理固定在父类模板方法里，SQL 执行留给回调；三是**观察者模式**——ApplicationListener 实现组件间解耦通信。MyBatis 的插件机制是典型的**责任链模式**——多个 Interceptor 可以串联拦截 Executor/StatementHandler/ResultSetHandler。」
+> 「Spring 中最经典的设计模式应用有三：一是**代理模式**实现 AOP——动态代理对 Bean 做无侵入增强；二是**模板方法模式**——JdbcTemplate 把连接管理/异常处理固定在父类模板方法里，SQL 执行留给回调；三是**观察者模式**——ApplicationListener 实现组件间解耦通信。MyBatis 的插件机制是典型的**责任链模式**——多个 Interceptor 串联拦截 Executor/StatementHandler。」
 >
-> 「做架构时自己也会主动运用设计模式，比如策略模式组织业务规则引擎、模板方法抽象批处理流程。但原则是**面向抽象设计，不要为了模式而模式**。最简单说就是：先写直白的代码，发现有重复模式了再抽象——而不是一上来就套设计模式。」
+> 「做架构时自己也会主动运用设计模式，比如策略模式组织业务规则引擎、模板方法抽象批处理流程。但原则是**面向抽象设计，不要为了模式而模式**。」
 
 ---
 
@@ -1538,7 +1607,6 @@ M:N 映射，IO 密集型可开数万线程，写同步代码达异步性能。�
 
 ### 其他（知道即可，不展开）
 
-- **GraalVM AOT**：启动 50-200ms，适合 Serverless/弹性场景，但反射/动态代理需提前配置
 - **可观测性**：OpenTelemetry 统一标准
 - **AI 集成**（差异化谈资，2-3 句话）：Agent 通过 Function Calling/MCP 对接现有微服务体系
 
@@ -1566,16 +1634,9 @@ M:N 映射，IO 密集型可开数万线程，写同步代码达异步性能。�
 - vs Session：JWT 省服务端存储，分布式友好；Session 可控性强（可强制踢人），单体友好
 - 注意：Payload 仅 Base64 编码非加密，敏感数据不要放 JWT；token 泄漏后难以吊销（靠短有效期 + 黑名单）
 
-**OAuth2 四种授权模式**：
-
-| 模式 | 流程 | 安全等级 | 场景 |
-|------|------|---------|------|
-| **授权码模式**（最安全） | 用户授权 → 拿 code → 后端换 token | 高 | Web 应用，后端参与 |
-| 密码模式 | 用户直接给账号密码换 token | 低 | 自家 App（正在被淘汰） |
-| 客户端凭证 | 客户端 ID+Secret 换 token | — | 服务间调用 |
-| 隐式模式 | 前端直接拿 token | 低 | 纯前端（已被 PKCE 替代） |
-
-面试时说清授权码最安全的原因：token 不在浏览器暴露，后端出码交换有 Secret 验证。
+**OAuth2**（社招只记两个）：
+- **授权码模式**（最安全）：用户授权 → 拿 code → 后端用 code+Secret 换 token。token 不在浏览器暴露
+- **客户端凭证模式**：客户端 ID+Secret 直接换 token。适用于服务间调用（M2M），不涉及用户
 
 **常见 Web 漏洞**：
 
@@ -1591,7 +1652,6 @@ M:N 映射，IO 密集型可开数万线程，写同步代码达异步性能。�
 
 **Docker 核心概念**：
 - 镜像分层：每层是只读文件系统（FROM + RUN + COPY 各自一层），层复用节省磁盘和拉取时间
-- Dockerfile 常用指令：FROM（基础镜像）、COPY（复制文件）、RUN（构建时执行）、CMD/ENTRYPOINT（启动命令）
 - 写 Dockerfile 经验：先拷依赖描述文件（pom.xml/requirements.txt）再 RUN 安装依赖，利用层缓存
 
 **K8s 核心概念速查**：
@@ -1601,7 +1661,6 @@ M:N 映射，IO 密集型可开数万线程，写同步代码达异步性能。�
 | Pod | 最小调度单元，可含多个容器共享网络/存储 | 进程组 |
 | Service | 固定虚拟 IP（ClusterIP），负载均衡到 Pod | nginx upstream |
 | Deployment | 声明期望副本数，滚动更新/回滚 | 发布系统 |
-| ConfigMap | 非敏感配置，挂载为文件或环境变量 | application.yml 外置 |
 
 **Java 应用在 K8s 的优雅上下线**：
 - 下线顺序：kubectl delete → preStop hook(sleep 10s 等待 Endpoint 摘除) → SIGTERM → Spring graceful shutdown(优雅关闭) → 进程退出
@@ -1635,18 +1694,13 @@ M:N 映射，IO 密集型可开数万线程，写同步代码达异步性能。�
 
 ### 面试前速览清单
 
-- 2 个项目 STAR 能不能不看稿讲 3-5 分钟？「我」做了哪些决策，不是「我们」
-- **Java 并发底层一条线**能不能串讲：JMM → volatile 可见性/有序性 → synchronized 锁升级路径 → AQS → ReentrantLock → CHM → ThreadLocal → 线程池？
-- Spring 三级缓存怎么解决循环依赖？事务失效的 7 种场景能说全吗？
-- 分布式锁/MQ/注册中心的选型逻辑能不能讲清楚「为什么选 A 不选 B」？
-- 微服务体系：灰度发布/全链路压测/链路追踪的概念能不能用 2 分钟讲清楚？
-- 系统设计：5 步法 + 秒杀系统完整链路的每一层技术选型能讲通吗？
-- MySQL：MVCC RR vs RC 的 ReadView 差异？redo/undo/binlog 三者的作用？
-- Redis：几大数据结构的底层实现？持久化方案？缓存一致性方案？
-- IO 模型：select → poll → epoll 演进解决了什么问题？
-- JVM：GC 演进 CMS→G1→ZGC 每代解决了上一代的什么问题？
-- 安全：JWT 结构 + OAuth2 授权码模式流程 + SQL注入/XSS/CSRF 防御？
-- 容器化：K8s 的 Pod/Service/Deployment 分别解决什么问题？Java 应用优雅下线流程？
-- ES：倒排索引原理 + 写入 refresh/flush 流程 + 脑裂怎么预防？
-- JVM/SQL 调优案例和故障排查案例的量化数据记不记得？
-- 3 个反问面试官的问题（如「目前团队在架构上最大的技术债是什么？」「入职后前 3 个月期望解决的核心技术痛点？」）
+- 2 个项目 STAR，3-5 分钟讲清「我」的决策，不是「我们」
+- Java 并发一条线：JMM → volatile → synchronized → AQS → ReentrantLock → CHM → ThreadLocal → 线程池
+- Spring：三级缓存解决循环依赖 + 事务失效 6 种场景
+- 分布式锁/MQ/注册中心/Dubbo：选型 + SPI + 灰度/压测/链路追踪
+- 系统设计：5 步法 + 秒杀完整链路 + 短链/排行榜/Feed/IM 关键思路
+- MySQL：MVCC RR vs RC + redo/undo/binlog + 索引/锁机制
+- Redis：底层数据结构 + 持久化 + 集群 + 缓存一致性
+- IO 模型：select→poll→epoll 演进 + Netty Reactor 模式
+- JVM：GC 演进 CMS→G1→ZGC + 调优排查案例数据
+- 3 个反问面试官的问题
