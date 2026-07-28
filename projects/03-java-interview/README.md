@@ -858,6 +858,16 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 | 写入方式 | 循环写（ib_logfile） | 随机写（undo 表空间） | 追加写（binlog 文件） |
 | 刷盘时机 | 事务提交时（innodb_flush_log_at_trx_commit） | 随 Buffer Pool Checkpoint（持久性由 Redo Log 保证） | 事务提交时（sync_binlog） |
 
+**Binlog 三种格式**：
+
+| 格式 | 记录内容 | 优点 | 缺点 | 默认 |
+|------|---------|------|------|------|
+| STATEMENT | SQL 语句 | 日志量小 | 非确定性函数（NOW/RAND）导致主从不一致 | 早期 |
+| **ROW** | 行级变更（改前→改后） | 精确，主从一致 | 日志量大 | **5.7+ 默认** |
+| MIXED | STATEMENT 为主，特殊情况切 ROW | 取两者之长 | 复杂度高 | — |
+
+面试时说：生产环境一律 ROW 格式，STATEMENT 的非确定性函数问题是硬伤，ROW 的日志量大但现代磁盘 IO 扛得住。
+
 **两阶段提交（2PC）**：
 ```
 1. Prepare：写入 redo log（prepare 状态）
