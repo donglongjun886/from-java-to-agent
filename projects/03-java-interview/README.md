@@ -856,7 +856,7 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 | 内容 | 物理：对数据页的修改 | 逻辑：修改前数据 | 逻辑：SQL 语句或行数据变化 |
 | 用途 | crash-safe 崩溃恢复 | 回滚 + MVCC | 主从复制 + 数据恢复 |
 | 写入方式 | 循环写（ib_logfile） | 随机写（undo 表空间） | 追加写（binlog 文件） |
-| 刷盘时机 | 事务提交时（innodb_flush_log_at_trx_commit） | 实时（记录在 redo log 中） | 事务提交时（sync_binlog） |
+| 刷盘时机 | 事务提交时（innodb_flush_log_at_trx_commit） | 随 Buffer Pool Checkpoint（持久性由 Redo Log 保证） | 事务提交时（sync_binlog） |
 
 **两阶段提交（2PC）**：
 ```
