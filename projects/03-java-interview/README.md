@@ -97,14 +97,14 @@ R（结果）：技术指标（优化前 XX→优化后 YY）+ 业务收益（�
 
 **注册中心：Nacos vs Eureka vs Consul**
 
-| 维度 | Nacos | Eureka 2.0 | Consul |
-|------|-------|-----------|--------|
+| 维度 | Nacos | Eureka | Consul |
+|------|-------|--------|--------|
 | AP/CP | 可切换（临时=AP，永久=CP） | 纯 AP | 可切换 |
 | 配置中心 | 内置 | 无 | 有但简陋 |
-| 国内生态 | 标配 | Netflix 闭源 | 弱 |
+| 国内生态 | 标配 | Netflix 已停维护 | 弱 |
 | 健康检查 | TCP/HTTP/MySQL 自定义 | HTTP 心跳 | Script/TCP/HTTP |
 
-**Nacos 选型理由**：注册中心+配置中心一体化，降低运维组件数量。临时实例走 AP（去中心化心跳检测，自动剔除故障节点），永久实例走 CP（Raft 一致性协议保证数据一致）。为什么不是 Eureka？2.0 已闭源，且没有配置中心能力需要额外维护 Apollo/Nacos Config。为什么不是 Consul？国内文档和社区生态远不如 Nacos。
+**Nacos 选型理由**：注册中心+配置中心一体化，降低运维组件数量。临时实例走 AP（去中心化心跳检测，自动剔除故障节点），永久实例走 CP（Raft 一致性协议保证数据一致）。为什么不是 Eureka？Netflix 已停止维护（Spring Cloud Netflix 进入维护模式），且没有配置中心能力需要额外维护 Apollo/Nacos Config。为什么不是 Consul？国内文档和社区生态远不如 Nacos。
 
 **Nacos 一致性取舍追问**：
 - 临时实例：客户端 5s 心跳，服务端 15s 无心跳剔除，CAP 选 AP
@@ -461,7 +461,7 @@ Thread
 **追问：线程池 OOM 怎么排查？**
 - 如果是堆 OOM：可能是无界队列（LinkedBlockingQueue 默认 Integer.MAX_VALUE）→ 改用有界队列
 - 如果是线程数 OOM：maxPoolSize 没上限或不合理 → 限制最大线程数
-- 典型错误：**Executors.newCachedThreadPool()** — maxPoolSize = Integer.MAX_VALUE，synchrnousQueue + 无上限线程 → 并发请求一多直接 OOM
+- 典型错误：**Executors.newCachedThreadPool()** — maxPoolSize = Integer.MAX_VALUE，SynchronousQueue + 无上限线程 → 并发请求一多直接 OOM
 - 面试金句：**《阿里巴巴开发手册》禁止用 Executors 创建线程池，必须用 ThreadPoolExecutor 显式指定参数**
 
 ### 2.9 HashMap（附加高频考点）
@@ -484,7 +484,6 @@ Thread
 - 容量始终保持 2 的幂（为了 index = hash & (n-1) 的高效取模）
 - loadFactor 默认 0.75：泊松分布和空间利用率的最优折衷
 - JDK8 扩容后位置计算：hash & oldCap == 0 → 原位置；== 1 → 原位置 + oldCap。不需要重新 hash
-- 多线程协助扩容（JDK8 中的 transfer）：类似 CHM 但更简单
 
 **追问：为什么转红黑树的阈值是 8？**
 - 根据泊松分布，hash离散良好时链表长度达到8的概率约 0.00000006（< 千万分之一）
@@ -670,7 +669,7 @@ Gateway（鉴权+限流+路由）→ Nacos（服务发现+配置）→ Sentinel�
 - 注册中心挂了影响：已有本地缓存的服务不受影响，新启动的服务无法注册
 
 **Sentinel**：
-- 流控模式（直排/关联/链路）按业务场景选
+- 流控模式（直接/关联/链路）按业务场景选
 - 熔断：慢调用比例（核心接口）vs 异常比例（明确异常）vs 异常数（低流量）
 - 规则持久化到 Nacos，不依赖 Dashboard
 
@@ -836,7 +835,7 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 **追问：什么情况会死锁？怎么排查？**
 - 典型场景：两个事务各自的 UPDATE 锁住了对方需要的间隙。A 对 id=5 加锁，B 对 id=10 加锁，然后 A 想锁 id=10→等待 B，B 想锁 id=5→等待 A → 死锁
 - 排查：SHOW ENGINE INNODB STATUS 中的 LATEST DETECTED DEADLOCK 段，有详细的锁等待图
-- InnoDB 自动检测死锁：选择回滚 undo 量最小的事务，错误码 1213
+- InnoDB 自动检测死锁：选择回滚修改行数最少（工作量最小）的事务，错误码 1213
 
 **追问：意向锁的作用？**
 - 没有意向锁的话：加表锁前需要遍历每一行检查是否有行锁 → O(n)
@@ -939,7 +938,7 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 ### 6.1 数据结构底层
 
 **面试话术（30秒版）**：
-> 「Redis 五种基本类型的底层实现不是一一对应的。String 有三种编码：int（整数直接存在指针里）、embstr（≤44 字节的短字符串，一次 malloc）、raw（长字符串）。List 在 3.2 后统一为 quicklist（ziplist 组成的双向链表）。Hash/Set/ZSet 小数据用紧凑编码（7.0 前 ziplist，7.0 后改用 listpack），大了转为对应结构——Hash 转 dict，Set 转 dict 或 intset，ZSet 转 skiplist+dict。这套编码转换机制叫 redisObject + encoding。」
+> 「Redis 五种基本类型的底层实现不是一一对应的。String 有三种编码：int（整数直接存在指针里）、embstr（≤44 字节的短字符串，一次 malloc）、raw（长字符串）。List 在 3.2 后统一为 quicklist（ziplist 组成的双向链表）。Hash/ZSet 小数据用紧凑编码（7.0 前 ziplist，7.0 后改用 listpack），Set 小数据用 intset（全整数集合）；数据量大了各自转为对应结构——Hash 转 dict，Set 转 dict，ZSet 转 skiplist+dict。这套编码转换机制叫 redisObject + encoding。」
 
 **底层实现速查**：
 
@@ -1152,9 +1151,9 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 - 实现：投递到 SCHEDULE_TOPIC_XXXX 系统主题，定时任务到时间后投递到目标 Topic
 - 订单超时关单的典型场景
 
-**消费者 Rebalance**：
+**消费者 Rebalance**（客户端驱动）：
 - 触发条件：消费者数量变化、Topic 配置变化
-- 过程：所有消费者向 Broker 发送心跳 → Broker 通知 Rebalance → 重新分配 Queue
+- 过程：每个消费者定时拉取 Topic 路由信息和同一消费组的消费者列表，在**客户端独立计算**自己应消费哪些 Queue。与 Kafka 的 GroupCoordinator 驱动模式不同。
 - 注意：Rebalance 期间短暂暂停消费（类似 Kafka 的 STW）
 
 ### 7.3 消息可靠性三种语义
@@ -1321,7 +1320,7 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 
 已在 P0 技术选型中详细讨论，这里补充**红锁（Redlock）** 认知：
 - Redlock 是 Redis 作者提出的多节点分布式锁方案，试图解决单节点锁不可靠的问题
-- 争议：Martin Kleppmann（Kafka 作者之一）指出 Redlock 依赖时钟同步假设，时钟跳变会破坏安全性
+- 争议：Martin Kleppmann（《数据密集型应用系统设计》作者）指出 Redlock 依赖时钟同步假设，时钟跳变会破坏安全性
 - 面试时说：「学术界对 Redlock 有争议，工程中我的选择是 Redisson 单节点锁 + 业务幂等兜底。如果你真的需要强一致性的分布式锁，用 ZK 或 etcd。」
 
 ---
@@ -1449,7 +1448,7 @@ CREATE TABLE seckill_order (
 | GC | 场景 | 核心 |
 |----|------|------|
 | G1 | 4G-32G，JDK 9+ 默认 | Region化+混合回收，无碎片 |
-| ZGC | >32G，STW<10ms | 染色指针+读屏障，JDK 17+ 生产可用 |
+| ZGC | >32G，STW<1ms（亚毫秒级） | 染色指针+读屏障，JDK 15+ 生产可用（JDK 17 LTS 推荐） |
 
 **GC 演进脉络（面试时讲出这个就比背参数强）**：
 > 「GC 的演进本质是"降低 STW"和"支撑更大内存"这两个需求的博弈。CMS 是第一款并发 GC，但碎片问题严重（并发清除无整理），极端情况退化为 Serial Old 导致长时间 STW，JDK 14 已移除。G1 用 Region 化 + 复制算法解决碎片问题，但单次 Mixed GC 仍有几十到几百毫秒停顿。ZGC 更进一步：染色指针 + 读屏障让并发整理与用户线程几乎同时进行，STW < 1ms，能支撑 TB 级堆。**选型口诀：4G 以下随便选，4-32G 上 G1，32G 以上或对延迟极端敏感上 ZGC。**」
@@ -1692,7 +1691,7 @@ M:N 映射，IO 密集型可开数万线程，写同步代码达异步性能。�
 ```
 写入请求 → 写入内存 buffer + translog（WAL，防丢失）
   → refresh（默认1s）：buffer 写入 segment（可搜索，不可修改）
-  → flush（默认30s/translog达阈值）：segment 提交到磁盘 + translog 清空
+  → flush（默认30分钟/translog达512MB阈值）：segment 提交到磁盘 + translog 清空
 ```
 关键点：数据写了但没 refresh → 搜索不到（near real-time = 1s 延迟）。
 
