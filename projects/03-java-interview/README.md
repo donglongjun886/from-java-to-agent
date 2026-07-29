@@ -29,7 +29,7 @@
 | 容器化基础 | **P2** | Docker镜像分层 + K8s核心概念 + 优雅上下线 |
 | Elasticsearch | **P2** | 倒排索引/写入流程/脑裂 |
 
-
+</div>
 
 ---
 
@@ -351,7 +351,7 @@ new Singleton() 的字节码三步：
 | 锁机制 | ReentrantLock | CAS + synchronized |
 | 并发度 | 固定（构造函数指定） | 动态（桶数量 = 数组长度） |
 | 扩容 | 单线程扩容 Segment 内 | **多线程协助扩容** |
-| size | 先 3 次不加锁，失败后全局加锁 | baseCount + CounterCell[]（类似 LongAdder） |
+| size | 先 2 次不加锁，失败后全局加锁 | baseCount + CounterCell[]（类似 LongAdder） |
 | 红黑树 | 无（纯链表） | 链表长度 >=8 且数组 >=64 时树化 |
 
 **为什么 JDK8 用 synchronized 而不是 ReentrantLock？**（高频追问）
@@ -368,7 +368,7 @@ new Singleton() 的字节码三步：
 5. 最后一个完成 transfer 的线程负责检查并设置新数组
 
 **追问：size() 怎么实现的？**
-- JDK7：先不加锁 sum 3 次，如果连续 2 次结果相同返回，否则全局加锁 → 性能差
+- JDK7：先不加锁 sum 2 次，如果连续 2 次结果相同返回，否则全局加锁 → 性能差
 - JDK8：baseCount（无竞争时 CAS 更新） + CounterCell[]（有竞争时分段计数）
   - addCount 时：先 CAS baseCount，失败则发到 CounterCell（ThreadLocalRandom 探针定位 Cell）
   - size() 时：baseCount + sum(CounterCell) — 但这不是精确值，是**快照**，可能不准确
@@ -512,7 +512,7 @@ Thread
 **扩容机制深度**：
 - 容量始终保持 2 的幂（为了 index = hash & (n-1) 的高效取模）
 - loadFactor 默认 0.75：泊松分布和空间利用率的最优折衷
-- JDK8 扩容后位置计算：hash & oldCap == 0 → 原位置；== 1 → 原位置 + oldCap。不需要重新 hash
+- JDK8 扩容后位置计算：hash & oldCap == 0 → 原位置；!= 0 → 原位置 + oldCap。不需要重新 hash
 
 **追问：为什么转红黑树的阈值是 8？**
 - 根据泊松分布，hash离散良好时链表长度达到8的概率约 0.00000006（< 千万分之一）
@@ -582,7 +582,7 @@ Thread
 |------|------|
 | 方法非 public | CGLIB/JDK代理无法拦截非public方法 |
 | 同类内部调用 | this.method() 不经过代理 → AOP 不生效 |
-| 异常被 catch 了 | @Transactional 只对 RuntimeExcepiton/Error 回滚 |
+| 异常被 catch 了 | @Transactional 只对 RuntimeException/Error 回滚 |
 | rollbackFor 未指定 | 受检异常默认不回滚 |
 | 数据源没有事务管理器 | 多数据源场景配错 TransactionManager |
 | 事务传播行为误配 | Propagation.NOT_SUPPORTED 会挂起当前事务 |
@@ -648,7 +648,7 @@ Thread
 **追问：FactoryBean 和 BeanFactory 的区别？**
 - BeanFactory：IOC 容器，管理 Bean 的工厂
 - FactoryBean：生产 Bean 的 Bean，getObject() 返回的才是最终 Bean。MyBatis 的 SqlSessionFactoryBean 就是典型
-- 面试时说："FactoryBean 是解决复杂 Bean 创建的模式，比如需要多步构建、需要返回代理对象的场景。getObject() 每次调用可能返回不同实例。"
+- 面试时说："FactoryBean 是解决复杂 Bean 创建的模式。MyBatis 的 SqlSessionFactoryBean 是典型——getObject() 返回的是 SqlSessionFactory 实例而非 FactoryBean 本身。默认 isSingleton()=true，getObject() 只调用一次；覆盖为 false 则每次返回不同实例。"
 
 ### 3.5 事务传播行为
 
@@ -721,7 +721,7 @@ Gateway（鉴权+限流+路由）→ Nacos（服务发现+配置）→ Sentinel�
 - Confirm：扣减冻结库存（真正减掉）→ 订单状态改为已确认
 - Cancel：解冻库存（加回可用）→ 预下单状态改为已取消
 
-**Seata AT 原理**：代理数据源，拦截 SQL → 解析前后镜像（UNDO_LOG）→ 生成回滚 SQL → 提交时一次性回滚。优点无侵入（业务代码零改动），缺点性能开销（前后镜像+全局锁）。
+**Seata AT 原理**：代理数据源，拦截 SQL → 解析前后镜像（UNDO_LOG）。一阶段分支事务提交并记录 UNDO_LOG；二阶段全局提交则异步删除 UNDO_LOG，全局回滚则根据前镜像生成补偿 SQL 一次性回滚。优点无侵入（业务代码零改动），缺点性能开销（前后镜像+全局锁）。
 
 **选型核心**：大部分场景最终一致性就够了。最终一致性的落地关键：本地消息表 + MQ 发送 + 定时扫表补偿 + T+1 对账兜底。AT/TCC 的一致性收益要大于侵入性代价才值得用。高层次认知：好的架构设计应该通过业务边界划分和状态机设计来避免分布式事务，而不是引入更复杂的框架来处理它。
 
@@ -791,7 +791,7 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 **SPI 扩展机制**：
 - JDK SPI：破坏性加载，一次性实例化所有实现（如所有 JDBC 驱动）
 - Dubbo SPI：key-value 方式按需加载，`@SPI` 指定默认实现，`@Adaptive` 自动生成适配类，`ExtensionLoader.getExtensionLoader()` 获取扩展
-- 这是 Dubbo 可插拔设计的灵魂——协议、注册中心、负载均衡、序列化全部通过 SPI 切换。JDK SPI 一次性实例化所有实现，Dubbo SPI 按需加载
+- 这是 Dubbo 可插拔设计的灵魂——协议、注册中心、负载均衡、序列化全部通过 SPI 切换
 
 **负载均衡**：
 - Random：加权随机，默认
@@ -1006,7 +1006,7 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 
 ### 5.7 分库分表 & 数据治理
 
-分片键选法、跨分片问题。补充数据生命周期管理：冷热分离（按时间分表+定时归档）、异构数据同步（Canal→ES/ClickHouse，延迟一致性怎么处理）。MySQL 8.0+ 不可见索引/降序索引（加分项）。
+分片键选法、跨分片问题。补充数据生命周期管理：冷热分离（按时间分表+定时归档）、异构数据同步（Canal→ES/ClickHouse，延迟一致性怎么处理）。MySQL 8.0+ 不可见索引（加分项，降序索引见 5.5 节）。
 
 ---
 
@@ -1229,7 +1229,7 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 **追问：RocketMQ 的 NameServer 和 Kafka 的 ZK 有何不同？**
 - NameServer 极度简单：无状态、不选举、不持久化，节点间不通信
 - 这是 RocketMQ 的架构哲学：用简单组件替代复杂组件，运维友好
-- ZK 自身就是一个分布式系统（有选举/持久化/JVM 开销），Kafka 3.3+ 用 KRaft(Kafka Raft) 替代 ZK 依赖，4.0 已完全移除 ZK
+- ZK 自身就是一个分布式系统（有选举/持久化/JVM 开销），Kafka 3.3+ 用 KRaft(Kafka Raft) 替代 ZK 依赖（4.0 计划彻底移除 ZK 支持）
 
 **事务消息**（RocketMQ 独有能力）：
 1. 发送半消息（half message，对消费者不可见）
@@ -1700,7 +1700,7 @@ CDN 原理：DNS 返回 CDN 边缘节点 IP（不是源站 IP）→ 用户访问
 
 **gRPC**：
 - 基于 Protobuf（二进制序列化，比 JSON 体积小 3-10 倍）+ HTTP/2（多路复用）
-- 四种种服务类型：Unary（一应一答）、Server Streaming、Client Streaming、Bidirectional Streaming
+- 四种服务类型：Unary（一应一答）、Server Streaming、Client Streaming、Bidirectional Streaming
 - 适用场景：微服务间高性能通信（跨语言、强类型、有 IDL 约束）
 - 面试时说：「gRPC 解决的是微服务间高性能通信问题——Protobuf 比 JSON 省带宽，HTTP/2 多路复用减少连接数，IDL 自动生成客户端代码消除手写 SDK 的开发成本。」
 
