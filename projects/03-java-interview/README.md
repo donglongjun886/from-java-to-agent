@@ -939,17 +939,19 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 ### 6.1 数据结构底层
 
 **面试话术（30秒版）**：
-> 「Redis 五种基本类型的底层实现不是一一对应的。String 用 SDS（简单动态字符串）；List/Hash/Set/ZSet 在数据量小的时候用 ziplist（压缩列表，连续内存），大了转为对应的结构——Hash 转 dict，ZSet 转 skiplist+dict，Set 转 dict 或 intset。Stream 是 Redis 5.0 新增的日志型数据结构。这套编码转换机制叫 redisObject + encoding。」
+> 「Redis 五种基本类型的底层实现不是一一对应的。String 有三种编码：int（整数直接存在指针里）、embstr（≤44 字节的短字符串，一次 malloc）、raw（长字符串）。List 在 3.2 后统一为 quicklist（ziplist 组成的双向链表）。Hash/Set/ZSet 小数据用紧凑编码（7.0 前 ziplist，7.0 后改用 listpack），大了转为对应结构——Hash 转 dict，Set 转 dict 或 intset，ZSet 转 skiplist+dict。这套编码转换机制叫 redisObject + encoding。」
 
 **底层实现速查**：
 
 | 数据类型 | 小数据量编码 | 大数据量编码 | 转换条件 |
 |----------|-------------|-------------|---------|
-| String | raw/embstr（SDS） | raw（SDS） | embstr→raw: 长度>44字节 |
-| List | ziplist→quicklist(3.2+) | linkedlist(已废弃) | quicklist 整合了两者优点 |
-| Hash | ziplist | hashtable(dict) | 字段>512或单字段>64字节 |
-| Set | intset | hashtable(dict) | 元素>512或非整数 |
-| ZSet | ziplist | skiplist + dict | 元素>128或单元素>64字节 |
+| String | **int** / embstr（SDS） | raw（SDS） | int: 整数可转 long；embstr→raw: 长度>44字节或执行 APPEND |
+| List | ziplist（3.2前）→ **quicklist**（3.2后统一，无大小切换） | linkedlist（3.2前，已废弃） | quicklist 是 ziplist 组成的双向链表，每个节点存一个 ziplist |
+| Hash | **listpack**（7.0+）/ ziplist（7.0前） | hashtable（dict） | 字段数>512 或 单字段>64字节 |
+| Set | **intset**（全整数集合） | hashtable（dict） | 元素>512 或 出现非整数元素 |
+| ZSet | **listpack**（7.0+）/ ziplist（7.0前） | skiplist + dict | 元素>128 或 单元素>64字节 |
+
+> **版本备注**：Redis 7.0 引入 listpack 逐步替代 ziplist（解决 ziplist 连锁更新问题）。当前 7.x 中 Hash/ZSet 小数据默认用 listpack，Set 小数据仍是 intset。面试以 ziplist 回答也可（多数公司还在 6.x），但主动提 listpack 是加分项。
 
 **追问：SDS 相比 C 字符串的优势？**
 - O(1) 获取长度（有 len 字段），C 字符串要 O(n) 遍历
