@@ -464,7 +464,34 @@ Thread
 - 典型错误：**Executors.newCachedThreadPool()** — maxPoolSize = Integer.MAX_VALUE，SynchronousQueue + 无上限线程 → 并发请求一多直接 OOM
 - 面试金句：**《阿里巴巴开发手册》禁止用 Executors 创建线程池，必须用 ThreadPoolExecutor 显式指定参数**
 
-### 2.9 HashMap（附加高频考点）
+### 2.9 CompletableFuture（高频加分项）
+
+**面试话术（30秒版）**：
+> 「CompletableFuture 是 JDK8 的异步编程核心，解决了 Future 的三大痛点：阻塞 get()、无法链式串联、异常处理割裂。核心方法是 thenApply（转换）、thenCompose（串联另一个异步任务）、thenCombine（合并两个结果）。默认用 ForkJoinPool.commonPool()，但**生产必须自定义线程池**隔离，避免阻塞任务占满公共池。」
+
+**核心方法区分**（最多被问的两个）：
+
+| 方法 | 输入 | 返回 | 类比 |
+|------|------|------|------|
+| `thenApply(Function)` | T → U | `CompletableFuture<U>` | map |
+| `thenCompose(Function)` | T → `CompletableFuture<U>` | `CompletableFuture<U>` | flatMap |
+| `thenCombine(other, BiFunction)` | 两个结果 → V | `CompletableFuture<V>` | zip |
+| `thenAccept(Consumer)` | T → void | `CompletableFuture<Void>` | forEach |
+
+**异常处理三兄弟**：
+
+| 方法 | 能恢复吗 | 能获取正常结果吗 |
+|------|---------|----------------|
+| `exceptionally(Function)` | 能（返回默认值） | 不经过 |
+| `whenComplete(BiConsumer)` | 不能 | **能**（result 和 ex 都传进来） |
+| `handle(BiFunction)` | 能 | **能**（result 和 ex 都传进来） |
+
+**面试追问：CompletableFuture 默认线程池是什么？有什么坑？**
+- 默认是 `ForkJoinPool.commonPool()`，JDK8 默认线程数 = CPU 核数 - 1
+- 如果有阻塞操作（数据库调用/HTTP 请求）跑在 commonPool 上，会把公共池线程全占满 → 其他 CompletableFuture、parallelStream 全部阻塞
+- 解决方案：自定义线程池 `CompletableFuture.supplyAsync(() -> ..., executor)`
+
+### 2.10 HashMap（附加高频考点）
 
 **面试话术（30秒版）**：
 > 「JDK7 数组+链表，头插法，并发扩容时可能产生环形链表导致死循环。JDK8 改成数组+链表+红黑树，尾插法，但并发 put 仍有数据覆盖风险。扩容后元素位置在原位置或原位置+oldCap，因为利用了高位 bit 的巧妙计算。树化阈值 8，退化阈值 6，中间差值缓冲防止反复树化和退化。」
@@ -925,7 +952,38 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 
 ### 5.6 SQL 优化
 
-准备 1 个真实案例：现象→EXPLAIN 定位（type/rows/Extra）→根因→改写→效果数据（必须量化）
+**EXPLAIN 核心字段速查**：
+
+| 字段 | 含义 | 关注点 |
+|------|------|--------|
+| type | 访问类型 | system > const > eq_ref > ref > range > index > **ALL**（尽量避免） |
+| key | 实际使用的索引 | 是否命中预期索引 |
+| key_len | 索引用到的字节数 | 判断走了几列 |
+| rows | 预估扫描行数 | 越小越好 |
+| Extra | 附加信息 | Using index（覆盖）> Using index condition（ICP）> Using where（回表过滤）> **Using filesort**（额外排序）> **Using temporary**（临时表） |
+
+**常见优化套路**：
+
+| 问题 | 方案 |
+|------|------|
+| filesort | 加索引覆盖 ORDER BY 列，或缩小结果集让内存排序扛住 |
+| 深分页 `LIMIT 100000,20` | 延迟关联：先用子查询定位主键再回表，或记住上次 ID 用 `WHERE id > ? LIMIT 20` |
+| COUNT 大表慢 | COUNT(*)≈COUNT(1)（InnoDB 无差别）；MyISAM 才有行数缓存；大表用 Redis 计数/估算 |
+| JOIN 慢 | 小表驱动大表；确保被驱动表 JOIN 列有索引；MySQL 8.0 的 Hash Join 替代 BNL |
+| 索引失效 | 函数/计算/隐式类型转换/LIKE '%xx'/OR 两边不统一 |
+
+**索引失效速查**（高频）：
+
+```sql
+-- 假设索引 (name, age)
+WHERE LEFT(name,3) = 'abc'   -- 函数，失效
+WHERE name + '' = 'abc'      -- 计算，失效
+WHERE name = 123             -- 类型转换（字符串列比整数），坑
+WHERE name LIKE '%abc'       -- 前缀通配符，失效
+WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
+```
+
+**面试时必须准备 1 个真实案例**：现象→EXPLAIN 定位（type/rows/Extra）→根因→改写→效果数据（必须量化）
 
 ### 5.7 分库分表 & 数据治理
 
@@ -1063,11 +1121,41 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 | Canal订阅binlog | 架构复杂度高 | 核心链路强需求 |
 | TTL兜底 | 最长不一致时间=TTL | **任何方案都需要的底线** |
 
-### 6.6 缓存三问题（保留原内容）
+### 6.6 缓存三问题
 
-1. 穿透：布隆过滤器（有误判）vs 空值缓存（简单），按 key 空间选
-2. 击穿：互斥锁（一致性优先）vs 逻辑过期（可用性优先）
-3. 雪崩：TTL 随机化（性价比最高）+ 多级缓存兜底
+**1. 缓存穿透**（查不存在的数据，绕过缓存直击 DB）
+
+| 方案 | 原理 | 适用 |
+|------|------|------|
+| **布隆过滤器** | 所有 key 哈希后存 bitmap，查前先问布隆 | key 空间可控，有误判率 |
+| **空值缓存** | 查不到也缓存 null，短 TTL | key 空间无限或布隆维护成本高 |
+
+面试说：先用布隆过滤掉大部分非法 key，极端情况布隆误判时空值缓存兜底。
+
+**2. 缓存击穿**（热点 key 过期瞬间，大量请求打到 DB）
+
+| 方案 | 原理 | 适用 |
+|------|------|------|
+| **互斥锁** | 查不到缓存时加锁，持锁线程查 DB 写缓存，其他等待 | 一致性优先 |
+| **逻辑过期** | 不删缓存，value 带过期时间戳；读时发现过期先返回旧值，异步更新 | 可用性优先 |
+
+**3. 缓存雪崩**（大量 key 同时过期，或 Redis 宕机）
+
+- TTL 加随机值（基础 TTL ± 随机偏移），性价比最高
+- 多级缓存（本地 Caffeine + 远程 Redis），Redis 挂了本地还能扛
+- 限流降级兜底，保证 DB 不被瞬间冲垮
+
+### 6.7 Redis Pipeline、事务、大Key、热Key
+
+**Pipeline（管道）**：批量发送命令→批量接收响应，减少 RTT。不是原子操作，只是网络优化。
+
+**事务（MULTI/EXEC/WATCH）**：不支持回滚（语法错整个事务失败，运行时错只有错的那条失败）。WATCH 实现 CAS 乐观锁。
+
+**Lua 脚本**：原子执行，减少网络往返，替代事务的常用方案。
+
+**大Key**：String >10KB 或集合元素 >1万。危害→阻塞（DEL 大集合会卡主线程）、带宽打满、数据倾斜。排查→`redis-cli --bigkeys`/`MEMORY USAGE key`。删除→`UNLINK`（4.0+异步删）或分批删（`HSCAN` + `HDEL`）。
+
+**热Key**：单 key QPS 极高把某个节点 CPU 打满。发现→`redis-cli --hotkeys`/客户端统计。解决→本地缓存/读写分离/热 key 多副本分散到不同节点。
 
 ---
 
@@ -1167,12 +1255,26 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 面试时说：
 > 「大多数业务场景 at least once + 消费者幂等就够了。exactly once 的代价很高（需要事务支持 + 性能下降），不是所有场景都值得。幂等可以通过业务唯一键 + DB 唯一索引 + Redis Set NX 实现。」
 
-### 7.4 消息堆积处理
+### 7.4 Kafka vs RocketMQ 选型对比（高频）
+
+| 维度 | Kafka | RocketMQ |
+|------|-------|----------|
+| 定位 | 流数据管道、大数据生态 | 业务消息中间件 |
+| 事务消息 | 需事务 API（性能开销大） | 原生半消息+回查，简洁 |
+| 延迟消息 | 不原生支持 | 4.x 固定18级 / 5.x 任意时间 |
+| 顺序消息 | 分区内有序 | 分区内有序 + MessageListenerOrderly |
+| 吞吐量 | 百万级（批量+顺序写） | 十万级 |
+| 生态 | Connect + Streams + ksqlDB | 阿里云商业版 + 中文社区 |
+| 运维 | 较重（但 KRaft 已移除 ZK 依赖） | NameServer 极简 |
+
+面试时说：「如果是电商交易链路（订单/支付），用 RocketMQ 的事务消息和延迟消息更合适；如果是日志/埋点/流计算，用 Kafka 的大数据生态。不纠结谁更好，纠结谁更适合当前场景。」
+
+### 7.5 消息堆积处理
 
 **面试话术**：
 > 「消息堆积的核心思路是增加并行度，而不是简单加机器。手段包括：增加消费者数量（但受分区数限制，Kafka 分区数要 >= 消费者数）、批量消费、降级非核心逻辑、临时跳过堆积的非核心消息、紧急修复消费慢的代码性能瓶颈。关键是要有消费延迟的监控告警，不要等堆积了才发现。」
 
-### 7.5 RocketMQ 可靠性（保留原内容）
+### 7.6 RocketMQ 可靠性
 
 **三环节**：生产（同步+重试）→ Broker（同步刷盘+主从复制）→ 消费（手动ack+幂等+重试）
 
