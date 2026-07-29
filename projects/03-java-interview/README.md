@@ -214,13 +214,15 @@ new Singleton() 的字节码三步：
 
 **锁升级路径**：
 
+> **版本提示**：偏向锁在 JDK 15 已废弃（JEP 374），JDK 21 默认关闭。以下内容作为理解锁升级演进历史仍有价值，但面试时应主动提一句"偏向锁已被废弃"展示版本意识。
+
 ```
                有竞争(撤销偏向)
 无锁 ──→ 偏向锁 ──→ 轻量级锁 ──(自旋失败/竞争加剧)──→ 重量级锁
   ↑          ↓ CAS替换ThreadID        ↓ CAS设置LockRecord指针
   │    同一线程重入（无需CAS）      自旋等待（自适应次数）
   │
-  └── 不可降级（但批量重偏向/批量撤销机制可以降级到无锁状态下重新偏向）
+  └── 不可降级（单个锁实例：批量重偏向是JVM类级别策略调整，非单个实例降级）
 ```
 
 **面试深水区追问**：
@@ -725,7 +727,16 @@ Gateway（鉴权+限流+路由）→ Nacos（服务发现+配置）→ Sentinel�
 
 ### 分布式锁
 
-- Redisson 看门狗：默认 30s 过期，每 10s 续期，Netty 时间轮调度；Hash 结构可重入
+**Redis 分布式锁三层递进**：
+
+| 层次 | 方案 | 特点 |
+|------|------|------|
+| 单实例 | `SET NX` + 过期时间 | 基础方案，进程 crash 锁丢失 |
+| 看门狗 | Redisson（默认30s，每10s续期） | 解决锁提前过期问题 |
+| 多节点 | **Redlock**（N 个独立 Redis，过半加锁成功） | 解决单点故障，但有争议 |
+
+**Redlock 争议**（面试加分项）：Martin Kleppmann（DDIA 作者）指出 Redlock 依赖时钟同步假设——如果某个 Redis 节点时钟发生跳变，锁的安全性会被破坏。Redis 作者 Antirez 回应称时钟跳变概率极低且可通过 fencing token 兜底。工程中选择 Redisson 单实例 + 业务幂等兜底即可，真的需要强一致性用 ZK/etcd。
+
 - 选型：性能优先用 Redis（默认选），一致性优先用 ZK（金融场景），K8s 生态用 etcd
 - 兜底：锁只是性能优化，业务层 DB 唯一索引才是最后防线
 
@@ -766,8 +777,10 @@ Gateway（鉴权+限流+路由）→ Nacos（服务发现+配置）→ Sentinel�
 - 实际项目可以混用：Dubbo 做 RPC 调用，Nacos 做服务发现，Sentinel 做熔断
 
 **协议模型**：
-- dubbo 协议（默认）：单一长连接+NIO+异步，适合小数据量高并发
-- http 协议：短连接，适合异构系统或跨语言调用
+- dubbo 协议（2.x 默认）：单一长连接+NIO+异步，适合小数据量高并发
+- **Triple 协议（Dubbo 3.x）**：基于 gRPC，兼容 gRPC 生态，支持流式调用（Server Stream/Client Stream/Bidirectional Stream），适合云原生和跨语言场景
+
+> **版本提示**：Dubbo 3.x 除 Triple 协议外，还引入了**应用级服务发现**（从接口级注册改为应用级，降低注册中心压力）和 Proxyless Service Mesh 支持。面试时主动提 3.x 演进是加分项。
 
 **调用链路（一次完整 RPC）**：
 ```
@@ -943,12 +956,18 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 | MIXED | 自动选择 | 复杂 |
 
 **面试话术（30秒版）**：
-> 「主从复制三个线程：主库的 dump 线程推送 binlog → 从库的 IO 线程接收写入 relay log → 从库的 SQL 线程回放 relay log。半同步复制在从库收到 relay log 后给主库 ACK，主库再返回客户端。并行复制（MySQL 5.7+）基于 group commit，同一个 binlog group 内的事务可以在从库并行回放。」
+> 「主从复制三个线程：主库的 dump 线程推送 binlog → 从库的 IO 线程接收写入 relay log → 从库的 SQL 线程回放 relay log。半同步复制在从库收到 relay log 后给主库 ACK，主库再返回客户端。并行复制：MySQL 5.7 基于 group commit（LOGICAL_CLOCK），8.0 升级为 WRITESET——通过哈希判断行级冲突，粒度更细、回放效率显著提升。」
 
 **追问：主从延迟怎么处理？**
 - 业务层面：写完立即读 → 强制走主库（ShardingSphere 的 HintManager）
 - 监控层面：pt-heartbeat 监测延迟秒数，超过阈值告警
 - 架构层面：MGR（MySQL Group Replication）或自研中间件做读写分离的动态路由
+
+**MySQL 8.0 加分特性**（面试中展示版本意识）：
+- **Hash Join**：替代 5.7 的 BNL（Block Nested Loop），无索引 JOIN 性能大幅提升
+- **窗口函数**：ROW_NUMBER/RANK/LEAD/LAG，报表类 SQL 可读性提升
+- **CTE（WITH 语句）**：递归查询支持
+- **降序索引**：`INDEX idx (a ASC, b DESC)` — 8.0 真正生效，5.7 解析但忽略
 
 ### 5.6 SQL 优化
 
@@ -1210,7 +1229,7 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 **追问：RocketMQ 的 NameServer 和 Kafka 的 ZK 有何不同？**
 - NameServer 极度简单：无状态、不选举、不持久化，节点间不通信
 - 这是 RocketMQ 的架构哲学：用简单组件替代复杂组件，运维友好
-- ZK 自身就是一个分布式系统（有选举/持久化/JVM 开销），Kafka 用 KRaft(Kafka Raft) 正在替代 ZK 依赖
+- ZK 自身就是一个分布式系统（有选举/持久化/JVM 开销），Kafka 3.3+ 用 KRaft(Kafka Raft) 替代 ZK 依赖，4.0 已完全移除 ZK
 
 **事务消息**（RocketMQ 独有能力）：
 1. 发送半消息（half message，对消费者不可见）
@@ -1235,9 +1254,11 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 - 对比 Kafka：Kafka 按分区独立存储，RocketMQ 所有分区共享 CommitLog
 
 **延迟消息**：
-- 不支持任意时间延迟，只支持预设的18个级别：1s/5s/10s/30s/1m/2m/3m/4m/5m/6m/7m/8m/9m/10m/20m/30m/1h/2h
-- 实现：投递到 SCHEDULE_TOPIC_XXXX 系统主题，定时任务到时间后投递到目标 Topic
+- **4.x**：不支持任意时间延迟，只支持预设的18个级别：1s/5s/10s/30s/1m/2m/3m/4m/5m/6m/7m/8m/9m/10m/20m/30m/1h/2h
+- **5.x**：引入**定时消息（Timer Message）**，支持任意延迟时间，基于时间轮算法实现
 - 订单超时关单的典型场景
+
+> **版本提示**：RocketMQ 5.x 还新增了 **Pop 消费模式**（消费者按需 Pop 消息，替代传统 Push/Pull）、**Proxy 代理层**（支持 gRPC 协议和多语言 SDK）、**Controller 模式 HA**（替代传统 Master-Slave 切换）。以上描述以 4.x 为主，面试时应了解 5.x 演进。
 
 **消费者 Rebalance**（客户端驱动）：
 - 触发条件：消费者数量变化、Topic 配置变化
@@ -1716,12 +1737,15 @@ CDN 原理：DNS 返回 CDN 边缘节点 IP（不是源站 IP）→ 用户访问
 
 ### 虚拟线程（JDK 21，高频新考点）
 
-M:N 映射，IO 密集型可开数万线程，写同步代码达异步性能。局限：ThreadLocal 开销（用 ScopedValue 替代）。
+M:N 映射，IO 密集型可开数万线程，写同步代码达异步性能。局限：
+- `synchronized` 块会 **pin 住载体线程（carrier thread pinning）**，导致虚拟线程退化为平台线程，JDK 24（JEP 491）才解决此问题
+- ThreadLocal 开销（百万级虚拟线程时可用 ScopedValue 替代，JDK 20+ 孵化）
+- CPU 密集型任务不需要虚拟线程（本来就该跑满）
 
 ### 其他（知道即可，不展开）
 
-- **可观测性**：OpenTelemetry 统一标准
-- **AI 集成**（差异化谈资，2-3 句话）：Agent 通过 Function Calling/MCP 对接现有微服务体系
+- **可观测性**：OpenTelemetry 统一标准（Traces/Metrics/Logs 三大信号统一模型），OTel Collector 负责采集→处理→导出
+- **AI 集成**（差异化谈资，2-3 句话）：Agent 通过 Function Calling/MCP 对接现有微服务体系；AI Gateway 模式统一管理多模型 API Key/限流/计费；LLM 可观测性关注 Token 用量/延迟分布/成本归因
 
 ---
 
