@@ -1125,6 +1125,17 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 - Pipeline 仍然可以发多个命令到不同节点
 - 事务（MULTI/EXEC）也要求所有 key 在同一 slot
 
+### 6.4.5 主从复制原理
+
+**全量同步**：从库首次连接发 PSYNC → 主库 BGSAVE 生成 RDB 发给从库 → 快照期间的写命令记在 replication buffer，快照发完后再补发追平。
+
+**增量同步**：主库维护 repl-backlog 环形缓冲区（默认 1MB），记录写命令和 offset。从库断连重连后发 PSYNC + offset，offset 还在 backlog 里就增量补发，不在就退化全量同步。
+
+**追问：什么会导致退化全量？** backlog 太小或断连太久，offset 被新命令覆盖。默认 1MB 线上大概率不够，需要调大。
+
+**面试话术（30秒版）**：
+> 「Redis 主从复制分全量和增量。全量靠 RDB 快照，增量靠 repl-backlog 按 offset 续传。关键点是 backlog 默认 1MB 线上不够用，短断连就退化全量同步，需要根据写入量调大。」
+
 ### 6.5 缓存一致性
 
 **面试话术（30秒版）**：
