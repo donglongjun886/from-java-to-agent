@@ -28,7 +28,7 @@
 
 ---
 
-## 三、二叉树
+## 三、二叉树 + BFS/DFS
 
 | 题号 | 题名 | 核心套路 |
 |------|------|----------|
@@ -38,9 +38,18 @@
 | 112 | Path Sum | DFS 回溯 |
 | 236 | Lowest Common Ancestor of a Binary Tree | 后序遍历递归 |
 
+## 四、图 / 矩阵 BFS/DFS
+
+| 题号 | 题名 | 核心套路 |
+|------|------|----------|
+| 200 | Number of Islands | DFS/BFS 标记已访问 |
+| 207 | Course Schedule | 拓扑排序 / DFS 环检测 |
+| 994 | Rotting Oranges | BFS 多源扩散 |
+| 79 | Word Search | DFS + 回溯 + 标记恢复 |
+
 ---
 
-## 四、排序 + 二分查找
+## 五、排序 + 二分查找
 
 | 题号 | 题名 | 核心套路 |
 |------|------|----------|
@@ -52,7 +61,7 @@
 
 ---
 
-## 五、动态规划
+## 六、动态规划
 
 | 题号 | 题名 | 核心套路 |
 |------|------|----------|
@@ -64,7 +73,40 @@
 
 ---
 
-## 六、栈 / 单调栈
+## 七、回溯
+
+| 题号 | 题名 | 核心套路 |
+|------|------|----------|
+| 78 | Subsets | 选/不选，回溯模板 |
+| 46 | Permutations | 全排列，used 标记 |
+| 39 | Combination Sum | 无限取，startIndex 防重 |
+| 22 | Generate Parentheses | 左括号< n 加左，右<左 加右 |
+| 17 | Letter Combinations of a Phone Number | 组合树，回溯经典 |
+
+---
+
+## 八、贪心
+
+| 题号 | 题名 | 核心套路 |
+|------|------|----------|
+| 121 | Best Time to Buy and Sell Stock | 记录历史最低价 |
+| 55 | Jump Game | 维护最远可达位置 |
+| 435 | Non-overlapping Intervals | 按结束时间排序 + 贪心选择 |
+
+---
+
+## 九、字符串
+
+| 题号 | 题名 | 核心套路 |
+|------|------|----------|
+| 5 | Longest Palindromic Substring | 中心扩散法 / DP |
+| 49 | Group Anagrams | 排序后字符串作 key / 计数 |
+| 76 | Minimum Window Substring | 滑动窗口（hard 题，但重要） |
+| 14 | Longest Common Prefix | 逐个字符比对 |
+
+---
+
+## 十、栈 / 单调栈
 
 | 题号 | 题名 | 核心套路 |
 |------|------|----------|
@@ -74,12 +116,31 @@
 
 ---
 
-## 七、堆 / PriorityQueue
+## 十一、堆 / PriorityQueue
 
 | 题号 | 题名 | 核心套路 |
 |------|------|----------|
 | 347 | Top K Frequent Elements | HashMap 计数 + 小顶堆 |
 | 23 | Merge k Sorted Lists | 小顶堆持续 poll 最小节点 |
+
+---
+
+## 十二、位运算
+
+| 题号 | 题名 | 核心套路 |
+|------|------|----------|
+| 136 | Single Number | 异或 XOR，相同为 0 |
+| 191 | Number of 1 Bits | n & (n-1) 消除最低位 1 |
+| 338 | Counting Bits | dp[i] = dp[i>>1] + (i&1) |
+
+---
+
+## 十三、设计题
+
+| 题号 | 题名 | 核心套路 |
+|------|------|----------|
+| 146 | LRU Cache | HashMap + 双向链表 |
+| 460 | LFU Cache | HashMap + TreeMap 按频率淘汰 |
 
 ---
 
