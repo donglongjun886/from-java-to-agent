@@ -814,6 +814,28 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 - 本地存根（Stub）：消费者端在执行远程调用前后的拦截逻辑，可做参数验证/缓存等
 - 路由规则：条件路由按参数/标签路由流量，实现灰度发布
 
+**Dubbo 补充常考**：
+
+服务暴露与引入：
+- 服务暴露全流程：ServiceBean → ProxyFactory 封装 Invoker → Protocol.export（RegistryProtocol 注册 + DubboProtocol 启动 Netty）→ 注册中心注册
+- 服务引入全流程：ReferenceBean → RegistryDirectory 订阅拉取地址列表 → Protocol.refer → DubboInvoker → ProxyFactory 生成动态代理
+
+集群容错与序列化：
+- 6 种容错模式：Failover（默认读重试）/ Failfast（写快速失败）/ Failsafe（吞异常）/ Failback（定时补偿）/ Forking（并行多Provider）/ Broadcast（广播）
+- 超时配置优先级链：Consumer 方法级 > Consumer 接口级 > Provider 方法级 > Provider 接口级
+- 序列化方案对比：Hessian2（默认）vs Kryo vs Protobuf，Hessian2 局限性（Lambda/泛型嵌套/LocalDateTime 兼容性差）
+
+线程模型与异步调用：
+- Dubbo 线程模型分层：Netty Boss（建连）→ Worker（IO读写）→ Dubbo 业务线程池（执行 Provider 方法）。服务端线程池默认固定 200
+- 异步调用演进：2.6 RpcContext.getFuture() → 2.7+ 原生 CompletableFuture。异步回调线程池耗尽风险
+
+扩展机制深入：
+- 泛化调用：GenericService 无需 API Jar 包即可远程调用，典型场景（网关/测试平台）
+- Filter 机制：责任链设计，Provider 端内置 Filter 执行顺序，自定义 Filter 三步实现
+- ZK 注册中心存储结构：/dubbo/com.xxx.Service/ 下 providers/consumers/configurators/routers 子节点
+- Dubbo 3.x 应用级服务发现：接口级注册 → 应用级注册，注册中心数据量减少 90%
+- 多协议多注册中心：同一服务同时暴露 dubbo（对内 RPC）+ REST（对外 HTTP）
+
 ---
 
 ## P1：高频深度（面试大概率追问的部分）
@@ -888,6 +910,12 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 
 ## 六、MySQL 深度（P1）
 
+### 6.0 事务基础
+
+- 四种隔离级别各自解决的问题（脏读/不可重复读/幻读）及 InnoDB 实现方式
+- InnoDB 如何实现 ACID：redo→持久性，undo→原子性，MVCC+锁→隔离性，约束+undo→一致性
+- 长事务危害（undo log 膨胀/锁长期持有/主从延迟）和监控方法
+
 ### 6.1 索引原理
 
 **面试话术（30秒版）**：
@@ -913,6 +941,13 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 **追问：联合索引 (a,b,c) 的 where a=? and c=? 走索引吗？**
 - 走 a 的索引，c 不走（因为 b 缺失打破了前缀匹配）
 - 但比全表扫描好，因为索引下推（ICP，Index Condition Pushdown）可以在索引层先过滤 c 的条件再回表（MySQL 5.6+）
+
+**索引补充常考**：
+- Change Buffer 的作用和适用场景（为什么唯一索引的插入不走 Change Buffer）
+- 前缀索引的选长策略（索引选择性计算）
+- 为什么推荐自增主键（页分裂 vs UUID随机主键）
+- MySQL 8.0 函数索引的使用场景和限制
+- 优化器选错索引的原因（统计信息不准、回表代价估算偏差）和对策
 
 ### 6.2 锁机制完整版（InnoDB RR）
 
@@ -948,6 +983,14 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 - 没有意向锁的话：加表锁前需要遍历每一行检查是否有行锁 → O(n)
 - 有了意向锁：加表锁前只需检查是否有 IX/IS 锁 → O(1)
 - 意向锁不阻塞行锁，只和表锁互斥（IX 和 X 表锁互斥）
+
+**锁机制补充常考**：
+- MDL 锁（元数据锁）的作用和对 DDL/DML 阻塞的影响
+- 自增锁三种模式（innodb_autoinc_lock_mode=0/1/2）及高并发插入下的选择
+- 锁等待视图排查（innodb_trx / innodb_locks / innodb_lock_waits）
+- 悲观锁 vs 乐观锁在 MySQL 层的实现方式、适用场景、**乐观锁的缺点**（写冲突多时退化为自旋、只能保护单行、表结构侵入需加 version 字段、不适合写多读少）
+- 间隙锁对高并发插入的影响及降低锁冲突的实战方案
+- 生产环境为什么不推荐使用外键约束
 
 ### 6.3 日志系统：redo log / undo log / binlog
 
@@ -986,6 +1029,11 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 - innodb_flush_log_at_trx_commit=1：每次提交刷盘（最安全，默认），=2 写 OS 缓存（每秒刷盘），=0 每秒刷盘
 - sync_binlog=1：每次提交刷盘，=N 每 N 次提交刷盘
 - 金融场景：两个都设 1（双 1 配置），牺牲性能保证数据安全
+
+**日志系统补充常考**：
+- Double Write Buffer 的原理（部分页写/页断裂问题）
+- Crash Recovery 过程（redo log 前滚 + undo log 回滚）
+- binlog 组提交（group commit）的原理和调优参数
 
 ### 6.4 MVCC：RR vs RC 的 ReadView 差异
 
@@ -1036,6 +1084,9 @@ Proxy → Cluster → LoadBalance → Filter Chain → Protocol → Exchanger �
 - **CTE（WITH 语句）**：递归查询支持
 - **降序索引**：`INDEX idx (a ASC, b DESC)` — 8.0 真正生效，5.7 解析但忽略
 
+**主从复制补充常考**：
+- GTID（全局事务标识符）的原理、优势及与传统位点复制的对比
+
 ### 6.6 SQL 优化
 
 **EXPLAIN 核心字段速查**：
@@ -1071,9 +1122,27 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 
 **面试时必须准备 1 个真实案例**：现象→EXPLAIN 定位（type/rows/Extra）→根因→改写→效果数据（必须量化）
 
+**SQL优化补充常考**：
+- 临时表产生的场景和优化方法
+- MySQL 8.0 EXPLAIN ANALYZE（输出实际执行代价，与 EXPLAIN 估算对比）
+- 批量插入优化手段（批量提交、关闭 autocommit、load data infile）
+- 慢查询日志分析（pt-query-digest / 慢查询分析平台思路）
+
 ### 6.7 分库分表 & 数据治理
 
-分片键选法、跨分片问题。补充数据生命周期管理：冷热分离（按时间分表+定时归档）、异构数据同步（Canal→ES/ClickHouse，延迟一致性怎么处理）。MySQL 8.0+ 不可见索引（加分项，降序索引见 6.5 节）。
+**分片策略与技术选型**：
+- 分片策略对比：哈希取模（均匀分散）vs 范围分片（顺序IO好）vs 一致性哈希（扩容好），各自优缺点
+- 跨分片分页/排序实现方案（归并排序法、全局游标法）
+- 分布式主键生成方案：雪花算法（趋势递增+时钟回拨）、号段模式（Leaf）、Redis自增，各自弊端
+- 平滑扩容方案（双倍扩容法、一致性哈希+虚拟节点）
+- 在线数据迁移方案（双写+数据校验、全量+增量同步）
+- 分库分表中间件对比：ShardingSphere-Proxy vs MyCat vs Vitess 核心差异
+
+**DDL 与运维**：
+- Online DDL 原理（inplace / copy / INSTANT 三类算法差异）
+- 大表 DDL 变更方案（gh-ost vs pt-online-schema-change vs 原生 online DDL）
+- 数据库连接数的合理配置
+- MySQL 8.0 不可见索引（Invisible Index）的使用场景和软删除实践
 
 ---
 
@@ -1114,6 +1183,18 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 - 每次对字典的增删改查操作，都顺便搬几个桶（分摊到多次请求）
 - 定时任务也会执行 rehash（serverCron 中的 dictRehashMilliseconds）
 - 内存开销：rehash 期间两个表共存，内存翻倍，是大 key 场景的坑
+
+**线程模型与IO多路复用**：
+- Redis 单线程模型为什么能支撑高并发？（IO多路复用 + 内存操作 + 避免锁竞争）
+- IO多路复用：epoll/select/poll 对比，Redis 为什么选 epoll
+- Redis 6.0 多线程的边界：网络 IO 多线程，命令执行仍单线程
+- 单线程真正瓶颈：大 Key CPU 密集操作、CPU 核心无法水平扩展
+
+**高级数据结构**：
+- HyperLogLog：基数统计，UV 场景，误差率 0.81%
+- Bitmap：位图操作，签到/活跃用户统计
+- GEO：地理位置，底层 ZSet + GeoHash 编码
+- RedisBloom：布隆过滤器模块
 
 ### 7.2 持久化机制
 
@@ -1218,6 +1299,8 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 | Canal订阅binlog | 架构复杂度高 | 核心链路强需求 |
 | TTL兜底 | 最长不一致时间=TTL | **任何方案都需要的底线** |
 
+**Canal 深入**：伪装成 MySQL Slave 解析 binlog → 投递 MQ → 异步更新缓存。删除缓存失败的重试策略（MQ 异步重试/定时任务补偿）。读写分离下缓存同步坑：主从延迟 + 先删缓存超时 = 缓存里的数据比 DB 从库还旧。
+
 ### 7.6 缓存三问题
 
 **1. 缓存穿透**（查不存在的数据，绕过缓存直击 DB）
@@ -1242,6 +1325,8 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 - 多级缓存（本地 Caffeine + 远程 Redis），Redis 挂了本地还能扛
 - 限流降级兜底，保证 DB 不被瞬间冲垮
 
+**缓存预热与多级缓存**：系统重启时的缓存预热策略（离线脚本/日志回放）。本地 Caffeine + 远程 Redis 两级架构，各级 TTL 与一致性保证。
+
 ### 7.7 Redis Pipeline、事务、大Key、热Key
 
 **Pipeline（管道）**：批量发送命令→批量接收响应，减少 RTT。不是原子操作，只是网络优化。
@@ -1253,6 +1338,14 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 **大Key**：String >10KB 或集合元素 >1万。危害→阻塞（DEL 大集合会卡主线程）、带宽打满、数据倾斜。排查→`redis-cli --bigkeys`/`MEMORY USAGE key`。删除→`UNLINK`（4.0+异步删）或分批删（`HSCAN` + `HDEL`）。
 
 **热Key**：单 key QPS 极高把某个节点 CPU 打满。发现→`redis-cli --hotkeys`/客户端统计。解决→本地缓存/读写分离/热 key 多副本分散到不同节点。
+
+**阻塞排查与 Lazy-free**：阻塞主线程的操作（KEYS/SMEMBERS/HGETALL/DEL 大集合）。Redis 4.0 Lazy-free（UNLINK/FLUSHALL ASYNC/lazyfree-lazy-* 配置）。fork 对性能的影响（内存越大 fork 越慢）。
+
+**内存碎片**：`mem_fragmentation_ratio` 含义（>1.5 需关注）。jemalloc 分配器特点。`CONFIG SET activedefrag yes` 自动整理。
+
+**慢查询诊断**：slowlog 配置与解读。latency monitor。`redis-cli --bigkeys` 局限性（采样不反映实际内存占用）。
+
+**Redis Stream**：消费组机制（XREADGROUP/pending/XACK/XCLAIM）。Stream vs List vs PubSub 选型。Stream 与 Kafka 定位差异——轻量级消息队列 vs 分布式流平台。
 
 ---
 
@@ -1300,6 +1393,14 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 - 优化：使用增量重分配协议（Cooperative Rebalancing, Kafka 2.4+），只重新分配有变化的分区
 - 面试时说：「Kafka 的重平衡是老生常谈的痛点，生产环境要配置合理的 session.timeout.ms 和 heartbeat.interval.ms，避免误触发」
 
+**Kafka 补充常考**：
+- 幂等生产者与事务消息（enable.idempotence、PID+SequenceNumber、事务协调器、LSO）
+- 消费组分区分配策略（Range/RoundRobin/Sticky/CooperativeSticky 四种策略演进）
+- 日志清理策略（delete vs compact，compact 的原理和适用场景）
+- 端到端不丢消息完整配置（producer: retries+acks=all + broker: min.insync.replicas+unclean.leader.election.enable=false + consumer: 手动提交）
+- Leader Epoch 机制（解决 HW 截断导致副本数据不一致）
+- 消息重复消费原因与幂等处理（生产者重试 vs 消费者 rebalance 导致重复）
+
 ### 8.2 RocketMQ 架构
 
 **架构角色**：NameServer（无状态路由，类似 Nacos 的简化版，不选举不持久化）→ Broker（主从）→ Producer/Consumer
@@ -1316,8 +1417,12 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 4. Broker 回查（check）：长时间未收到二次确认 → 回调 Producer 的 checkLocalTransaction 接口
 
 **顺序消息**：
-- 同一业务 ID（订单号）的消息发到同一 MessageQueue → 同一消费者线程顺序消费
-- Producer 端用 MessageQueueSelector，Consume 端用 MessageListenerOrderly（加锁保证同一队列单线程消费）
+
+- 全局顺序：Topic 只建 1 个 Queue，所有消息有序但吞吐量只剩单机；分区顺序：多 Queue + 按业务 ID 路由，同一 ID 内有序（常用）
+- Producer：`MessageQueueSelector` 按业务 ID 固定选 Queue（阿里云版用 `shardingKey` 隐式完成）
+- Consumer：`MessageListenerOrderly` 加锁保证同一 Queue 单线程消费
+- 线程数 = Queue 数即可，多了争锁浪费；顺序消息不能走 Concurrently 消费
+- 适用：订单状态流转、账户余额变更、库存扣减等同一对象的事件必须按发生顺序处理
 
 **消息重试与死信队列**：
 - 消费失败返回 RECONSUME_LATER → 进重试队列 %RETRY%consumerGroup
@@ -1331,6 +1436,16 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 - 消费时先查 ConsumerQueue 拿到 offset，再读 CommitLog → 两次IO但顺序读很快
 - 对比 Kafka：Kafka 按分区独立存储，RocketMQ 所有分区共享 CommitLog
 
+**RocketMQ 为什么快？**（高频追问）
+
+| 技术 | 做了什么 |
+|------|----------|
+| **CommitLog 顺序写** | 所有消息追加写，随机写变顺序写，吞吐差 6000 倍 |
+| **mmap** | CommitLog 映射到内存，Broker 读消息不用 read()，省一次 CPU copy |
+| **sendfile** | 消息发消费者：PageCache 直达网卡，不经过用户态，省两次 CPU copy |
+| **异步刷盘** | 写 CommitLog 后立即返回，后台定时 fsync |
+| **ConsumerQueue** | 索引只存 offset+size+tagCode，mmap 后全在内存，查 offset 纯内存操作 |
+
 **延迟消息**：
 - **4.x**：不支持任意时间延迟，只支持预设的18个级别：1s/5s/10s/30s/1m/2m/3m/4m/5m/6m/7m/8m/9m/10m/20m/30m/1h/2h
 - **5.x**：引入**定时消息（Timer Message）**，支持任意延迟时间，基于时间轮算法实现
@@ -1342,6 +1457,17 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 - 触发条件：消费者数量变化、Topic 配置变化
 - 过程：每个消费者定时拉取 Topic 路由信息和同一消费组的消费者列表，在**客户端独立计算**自己应消费哪些 Queue。与 Kafka 的 GroupCoordinator 驱动模式不同。
 - 注意：Rebalance 期间短暂暂停消费（类似 Kafka 的 STW）
+
+**队列数、消费实例数、线程数关系**（高频实操题）
+
+约束：一个 MessageQueue 同一时间只能被一个消费者线程消费。队列数 = 并行度上限。`实际并发 = min(Queue数, 实例数 × 单实例线程数)`。扩容先扩队列数（预创建，只增不减），实例 ≤ 队列数，线程只在 实例<队列数 时有用。队列满仍堆积 → 批量消费或降级。
+
+**RocketMQ 补充常考**：
+- 刷盘机制（同步刷盘 vs 异步刷盘，flushDiskType 配置，性能与可靠性权衡）
+- 消息过滤（Tag 过滤 vs SQL92 属性过滤，实现原理和性能差异）
+- 主从同步与高可用（同步复制 vs 异步复制，DLedger 基于 Raft 的 HA）
+- 5.x 新特性：Pop 消费模式、Proxy 代理层、Controller 模式 HA
+- 生产者负载均衡（默认轮询 vs 自定义 MessageQueueSelector）
 
 ### 8.3 消息可靠性三种语义
 
@@ -1378,6 +1504,11 @@ WHERE name = 'a' OR age = 18 -- OR 两边不统一，失效（可拆成 UNION）
 **三环节**：生产（同步+重试）→ Broker（同步刷盘+主从复制）→ 消费（手动ack+幂等+重试）
 
 **幂等**：业务唯一键 → DB 唯一索引 → Redis Set NX
+
+**通用 MQ 补充常考**：
+- 技术选型四维度：Kafka / RocketMQ / RabbitMQ / Pulsar 适用场景、性能边界、运维成本
+- 分布式事务最终一致性方案对比：本地消息表 vs RocketMQ 半消息 vs Seata AT
+- 高可用机制对比：Kafka ISR+Leader选举 vs RocketMQ Master-Slave+DLedger
 
 ---
 
@@ -1654,6 +1785,31 @@ CREATE TABLE seckill_order (
 **GC 演进脉络（面试时讲出这个就比背参数强）**：
 > 「GC 的演进本质是"降低 STW"和"支撑更大内存"这两个需求的博弈。CMS 是第一款并发 GC，但碎片问题严重（并发清除无整理），极端情况退化为 Serial Old 导致长时间 STW，JDK 14 已移除。G1 用 Region 化 + 复制算法解决碎片问题，但单次 Mixed GC 仍有几十到几百毫秒停顿。ZGC 更进一步：染色指针 + 读屏障让并发整理与用户线程几乎同时进行，STW < 1ms，能支撑 TB 级堆。**选型口诀：4G 以下随便选，4-32G 上 G1，32G 以上或对延迟极端敏感上 ZGC。**」
 
+**GC 深度补充**：
+- Young GC / Mixed GC / Full GC 各自触发条件
+- 对象晋升老年代的几种情况（年龄阈值、动态年龄判断、分配担保失败）
+- 三色标记法原理：漏标两个必要条件。CMS Incremental Update vs G1 SATB 分别怎么解决漏标
+- G1 的 RSet 和 Card Table 作用及区别（跨 Region 引用维护）
+- GC 日志解读：关键指标（暂停时间、回收量、堆变化）怎么看
+- CMS 七个阶段：哪些 STW、哪些并发
+- G1 Humongous 对象问题：为什么可能导致提前 Full GC
+- ZGC 染色指针原理：相比 G1 屏障机制的本质区别
+
+**JVM 内存结构**：
+- 运行时数据区各区域存储内容和 OOM 异常类型（堆/栈/方法区/程序计数器/本地方法栈）
+- Metaspace OOM 场景和排查
+- 直接内存 OOM 表现和排查（与堆 OOM 区分）
+- 强引用/软引用/弱引用/虚引用区别和使用场景
+
+**JIT 编译优化**：
+- C1/C2 编译器区别，分层编译原理
+- 逃逸分析 → 标量替换 → 锁消除协作链路
+- 方法内联触发条件和限制（方法体大小、调用深度、虚方法）
+
+**类加载深入**：
+- 准备阶段 vs 初始化阶段区别：static final 基本类型 vs 引用类型的赋值时机
+- 自定义类加载器典型场景（热部署、字节码加密、多版本共存）
+
 ### 类加载与内存模型
 
 **面试话术（30秒版）**：
@@ -1696,6 +1852,12 @@ CREATE TABLE seckill_order (
 **死锁排查**：jstack PID 底部自动输出 Found 1 deadlock + 详细锁等待图
 
 准备 1 个真实排查案例（CPU 飙高/OOM/慢请求/死锁/内存泄漏），按这 3 步讲清楚你的决策。
+
+**排查补充**：
+- 频繁 Full GC 排查思路（jstat -gcutil 看 FGC 频率 → jmap dump → MAT 分析 → 找到内存泄漏点或调整 GC 参数）
+- Arthas 常用命令和排查场景（watch/trace/tt/monitor/thread/vmoption/profiler）
+- 生产环境 JVM 参数规划：优先不配，JDK 默认 G1 够好。只设 Xms=Xmx + MaxGCPauseMillis，压测后再调
+- SafePoint 机制：什么场景导致 STW 时间过长（可数循环、大对象分配、JNI 临界区）
 
 ---
 
