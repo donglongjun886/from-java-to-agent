@@ -21,10 +21,10 @@
 | 题号 | 题名 | 核心套路 |
 |------|------|----------|
 | 206 | Reverse Linked List | 迭代 + 递归 |
-| 141 | Linked List Cycle | 快慢指针 |
 | 21 | Merge Two Sorted Lists | 虚拟头节点 |
-| 160 | Intersection of Two Linked Lists | 双指针走对方的路 |
+| 141 | Linked List Cycle | 快慢指针 |
 | 19 | Remove Nth Node From End of List | 快慢指针差 N 步 |
+| 160 | Intersection of Two Linked Lists | 双指针走对方的路 |
 
 ---
 
@@ -67,9 +67,9 @@
 |------|------|----------|
 | 70 | Climbing Stairs | 斐波那契 dp[i]=dp[i-1]+dp[i-2] |
 | 53 | Maximum Subarray | Kadane: dp[i]=max(nums[i], dp[i-1]+nums[i]) |
-| 322 | Coin Change | 完全背包 |
 | 198 | House Robber | 状态转移 dp[i]=max(dp[i-1], dp[i-2]+nums[i]) |
 | 300 | Longest Increasing Subsequence | dp[i]=max(dp[j]+1) for j<i, nums[j]<nums[i] |
+| 322 | Coin Change | 完全背包 |
 
 ---
 
@@ -78,8 +78,8 @@
 | 题号 | 题名 | 核心套路 |
 |------|------|----------|
 | 78 | Subsets | 选/不选，回溯模板 |
-| 46 | Permutations | 全排列，used 标记 |
 | 39 | Combination Sum | 无限取，startIndex 防重 |
+| 46 | Permutations | 全排列，used 标记 |
 | 22 | Generate Parentheses | 左括号< n 加左，右<左 加右 |
 | 17 | Letter Combinations of a Phone Number | 组合树，回溯经典 |
 
@@ -99,10 +99,10 @@
 
 | 题号 | 题名 | 核心套路 |
 |------|------|----------|
-| 5 | Longest Palindromic Substring | 中心扩散法 / DP |
-| 49 | Group Anagrams | 排序后字符串作 key / 计数 |
-| 76 | Minimum Window Substring | 滑动窗口（hard 题，但重要） |
 | 14 | Longest Common Prefix | 逐个字符比对 |
+| 49 | Group Anagrams | 排序后字符串作 key / 计数 |
+| 5 | Longest Palindromic Substring | 中心扩散法 / DP |
+| 76 | Minimum Window Substring | 滑动窗口（hard 题，但重要） |
 
 ---
 
